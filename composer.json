@@ -1,5 +1,5 @@
 {
-    "name": "pio/DB",
+    "name": "pio/db",
     "type": "class",
     "description": "A class to store DB connection data",
     "keywords": ["db","database"],
