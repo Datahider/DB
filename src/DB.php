@@ -15,8 +15,9 @@ namespace pio\DB;
 class DB {
     public static $pdo;
     public static $prefix;
-    
-    public static function connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4') {
+    public static $suffix;
+
+        public static function connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4') {
         
         DB::$pdo = new PDO("mysql:dbname=$db_name;host=$db_host", 
                 $db_user, 
