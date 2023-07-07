@@ -1,7 +1,8 @@
-# DB
+#About DB
 Database access with so called DB Objects (descendants of class DBObject)
 that mirror data table structure to your project
 
+## DB - making DB connection
 There is an example class DBChildObjectExample that is a descendant of DBObject.
 Before using DBObject descendant you have to open DB connection with and make some stuff:
     
@@ -13,6 +14,7 @@ Before using DBObject descendant you have to open DB connection with and make so
 
 After that you can access a table with your DBObject descendant.
 
+## DBObject - accessing data
 Some useful operations:
 
 ```
@@ -39,3 +41,9 @@ Some useful operations:
         $existing->write();
     }
 ```
+
+## Special stuff
+If you need some special processing (like checking or filling data) you may override DBObject::fetch(...) and DBObject::write() methods.
+
+## Epilogue
+That's it. Have fun.
