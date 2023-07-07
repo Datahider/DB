@@ -1,2 +1,4 @@
-/index.php
 /vendor/
+/DBTestChild.php
+/secret.php
+/index.php
