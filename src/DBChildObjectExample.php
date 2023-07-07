@@ -24,8 +24,8 @@ class DBChildObjectExample extends DBObject {
      */
     const SQL_CREATE_TABLE = <<<END
             CREATE TABLE IF NOT EXISTS %TABLE_NAME% (
-                id bigint(20) NOT NULL AUTO_INCREMENT,
-                name varchar(50),
+                id bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Идентификатор',
+                name varchar(50) COMMENT 'Имя',
                 PRIMARY KEY (id)
             ) COMMENT = 'v1.0.0'    /* Don't forget to specify version as table comment */
             END;
@@ -35,7 +35,7 @@ class DBChildObjectExample extends DBObject {
      */
     const SQL_UPGRADE_FROM_1_0_0 = <<<END
             ALTER TABLE %TABLE_NAME% COMMENT = 'v1.0.7',  /* Don't forget to specify new version of table structure */
-            ADD description varchar(1024)
+            ADD description varchar(1024) COMMENT 'Описание'
             END;
     
     

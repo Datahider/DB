@@ -47,6 +47,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
 
 
     protected static $__fields = [];
+    protected static $__labels = [];
     protected static $__pri = [];
     protected static $__autoincrement = [];
 
@@ -125,6 +126,14 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return self::$__pri[get_class($this)];
     }
 
+    public function getLabel($field_name) {
+        if (array_key_exists($field_name, self::$__labels[get_class($this)])) {
+            return self::$__labels[get_class($this)][$field_name];
+        } else {
+            throw new \Exception('Unknown field: '. $field_name, -10003);
+        }
+    }
+    
     public function __set($name, $value) {
         if (array_key_exists($name, $this->__data)) {
             $this->checkSetField($name);
@@ -175,6 +184,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         
         while ($row = $sth->fetch(\PDO::FETCH_OBJ)) {
             self::$__fields[get_class($this)][] = $row->Field;
+            self::$__labels[get_class($this)][$row->Field] = empty($row->Comment) ? $row->Field : $row->Comment;
             if ($row->Key == 'PRI') {
                 self::$__pri[get_class($this)] = $row->Field;
             }
@@ -248,7 +258,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             END;
 
     const SQL_FETCH_COLUMNS = <<<END
-            SHOW FIELDS FROM %TABLE_NAME%;
+            SHOW FULL FIELDS FROM %TABLE_NAME%;
             END;
     
     const SQL_FETCH_TABLE_VERSION = <<<END
