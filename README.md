@@ -5,17 +5,14 @@ that mirror data table structure to your project
 There is an example class DBChildObjectExample that is a descendant of DBObject.
 Before using DBObject descendant you have to open DB connection with and make some stuff:
 
-    <code>
     DB::connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4');
     DB::setClassNamespace("\\your\\namespace\\");   /* use \\ at the begining and the end of namespace */
     DB::checkDataStructure("yourClassOne, yourClassTwo, andSoOn", true);
-    </code>
 
 After that you can access a table with your DBObject descendant.
 
 Some useful operations:
 
-    <code>
     // Creating record:
     
     $new = new DBChildObjectExample();
@@ -38,4 +35,3 @@ Some useful operations:
         $existing->description = 'New description';
         $existing->write();
     }
-    </code>
