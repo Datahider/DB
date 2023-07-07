@@ -1,7 +1,7 @@
 {
     "name": "losthost/db",
     "type": "class",
-    "description": "A class to store DB connection data",
+    "description": "Database access with so called DB Objects (descendants of class DBObject)",
     "keywords": ["db","database"],
     "homepage": "https://github.com/datahider/DB",
     "license": "MIT",
