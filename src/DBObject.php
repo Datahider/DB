@@ -58,7 +58,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         
         if ($where !== null) {
             if (!$this->fetch($where, $params)) {
-                throw new \Exception('Not found');
+                throw new \Exception('Not found', -10002);
             }
         }
     }
@@ -116,14 +116,16 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         if (!isset(self::$__fields[get_class($this)])) {
             $this->fetchDataStructure();
         }
-        return self::$__autoincrement[get_class($this)];
+        $class = get_class($this);
+        return isset(self::$__autoincrement[$class]) ? self::$__autoincrement[$class] : null;
     }
 
     public function getPrimaryKey() {
         if (!isset(self::$__fields[get_class($this)])) {
             $this->fetchDataStructure();
         }
-        return self::$__pri[get_class($this)];
+        $class = get_class($this);
+        return isset(self::$__pri[$class]) ? self::$__pri[$class] : null;
     }
 
     public function getLabel($field_name) {
