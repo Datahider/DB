@@ -222,6 +222,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
 
         $result = $string;
         foreach ($full_vars as $key => $value) {
+            if ($value === null) {
+                $value = '';
+            }
             $result = str_replace("%$key%", $value, $result);
         }
         
