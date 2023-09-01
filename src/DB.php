@@ -18,7 +18,50 @@ class DB {
     public static $prefix;
     public static $database;
     protected static $namespace = '';
+    protected static $trackers = [
+        DBEvent::BEFORE_MODIFY => [],
+        DBEvent::BEFORE_INSERT => [],
+        DBEvent::BEFORE_UPDATE => [],
+        DBEvent::BEFORE_DELETE => [],
+        DBEvent::INTRAN_INSERT => [],
+        DBEvent::INTRAN_UPDATE => [],
+        DBEvent::INTRAN_DELETE => [],
+        DBEvent::AFTER_MODIFY => [],
+        DBEvent::AFTER_INSERT => [],
+        DBEvent::AFTER_UPDATE => [],
+        DBEvent::AFTER_DELETE => [],
+    ];
+
+    public static function addTracker(int|array $event_types, string|array $classes, string|DBTracker $tracker) {
+        if (is_int($event_types)) {
+            $event_types = [$event_types];
+        }
+        
+        if (is_string($classes)) {
+            $classes = [$classes];
+        }
+        
+        foreach ($event_types as $type) {
+            foreach ($classes as $class) {
+                self::$trackers[$type][$class][] = $tracker;
+            }
+        }
+    }
     
+    public static function notify(DBEvent $event) {
+
+        if (isset(self::$trackers[$event->type][get_class($event->object)])) {
+            foreach (self::$trackers[$event->type][get_class($event->object)] as $tracker) {
+                if (is_string($tracker)) {
+                    $tracker = new $tracker();
+                }
+                $tracker->track($event);
+            }
+        }
+        
+    }
+
+
     public static function connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4') {
         
         DB::$pdo = new \PDO("mysql:dbname=$db_name;host=$db_host", 
@@ -80,8 +123,8 @@ class DB {
         }
     }
     
-    protected static function checkClassDataStructure($class, $upgrade) {
-        $class = self::classFullName($class);
+    protected static function checkClassDataStructure($_class, $upgrade) {
+        $class = self::classFullName($_class);
         
         if (!defined("$class::SQL_CREATE_TABLE")) {
             throw new \Exception("const SQL_CREATE_TABLE is not defined for class $class.", -10007);
@@ -93,9 +136,9 @@ class DB {
         return self::upgradeTable($class, $upgrade); 
     }
     
-    protected static function upgradeTable($class, $upgrade) {
+    protected static function upgradeTable($_class, $upgrade) {
 
-        $class = self::classFullName($class);
+        $class = self::classFullName($_class);
         
         $sth_get_version = self::prepare($class::SQL_FETCH_TABLE_VERSION, $class::TABLE_NAME);
         $sth_get_version->setFetchMode(\PDO::FETCH_COLUMN, 0);
@@ -119,9 +162,9 @@ class DB {
         
     }
 
-    protected static function prepare($sql, $table_name='', $condition=1) {
+    protected static function prepare($_sql, $table_name='', $condition=1) {
         
-        $sql = self::replaceVars($sql, $table_name, $condition);
+        $sql = self::replaceVars($_sql, $table_name, $condition);
 
         $sth = self::$pdo->prepare($sql);
         return $sth;

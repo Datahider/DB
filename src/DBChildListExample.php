@@ -12,7 +12,7 @@ namespace losthost\DB;
  *
  * @author drweb_000
  */
-class DBChildList extends DBList {
+class DBChildListExample extends DBList {
 
     const SQL_QUERY = <<<END
             SELECT 

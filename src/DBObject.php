@@ -44,13 +44,15 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
 
     protected $__data = [];
     protected $__is_new = true;
-
+    protected $__fields_modified = [];
+    protected $__events_active = [];
+    protected $__immutable = false;
 
     protected static $__fields = [];
     protected static $__labels = [];
     protected static $__pri = [];
     protected static $__autoincrement = [];
-
+    
     public function __construct($where = null, $params = []) {
         $this->__table_name = static::TABLE_NAME;
 
@@ -87,24 +89,45 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return true;
     }
     
-    public function write() {
-        if ($this->__is_new) {
-            $sth = $this->prepare(static::SQL_INSERT);
-            $sth->execute($this->__data);
-            if ($this->getAutoIncrement()) {
-                $this->__data[$this->getAutoIncrement()] = DB::$pdo->lastInsertId();
-            }
-            $this->__is_new = false;
+    public function write($comment='', $data='') {
+        if ($this->isNew()) {
+            $this->insert($comment, $data);
         } else {
-            $sth = $this->prepare(static::SQL_UPDATE, [ 'WHERE' => $this->getPrimaryKey(). ' = :'. $this->getPrimaryKey()]);
-            $sth->execute($this->__data);
+            $this->update($comment, $data);
         }
+    }
+    
+    protected function insert($comment, $data) {
+        $sth = $this->prepare(static::SQL_INSERT);
+        $this->beforeInsert($comment, $data);
+        DB::$pdo->beginTransaction();
+        $sth->execute($this->__data);
+        if ($this->getAutoIncrement()) {
+            $this->__data[$this->getAutoIncrement()] = DB::$pdo->lastInsertId();
+        }
+        $this->__is_new = false;
+        $this->intranInsert($comment, $data);
+        DB::$pdo->commit();
+        $this->afterInsert($comment, $data);
+    }
+    protected function update($comment, $data) {
+        $sth = $this->prepare(static::SQL_UPDATE, [ 'WHERE' => $this->getPrimaryKey(). ' = :'. $this->getPrimaryKey()]);
+        $this->beforeUpdate($comment, $data);
+        DB::$pdo->beginTransaction();
+        $sth->execute($this->__data);
+        $this->intranUpdate($comment, $data);
+        DB::$pdo->commit();
+        $this->afterUpdate($comment, $data);
     }
     
     public function isNew() {
         return $this->__is_new;
     }
     
+    public function isModified() {
+        return count($this->__fields_modified) > 0;
+    }
+
     public function getFields() {
         if (!isset(self::$__fields[get_class($this)])) {
             $this->fetchDataStructure();
@@ -137,9 +160,16 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     public function __set($name, $value) {
+        if ($this->__immutable) {
+            throw new \Exception('The object is in immutable state.', -10013);
+        }
         if (array_key_exists($name, $this->__data)) {
             $this->checkSetField($name);
-            $this->__data[$name] = $value;
+            if ($this->__data[$name] != $value) {
+                $this->beforeModify($name, $value);
+                $this->__data[$name] = $value;
+                $this->afterModify($name, $value);
+            }
         } else {
             throw new \Exception("Field $name does not exist in the local data set.", -10003);
         }
@@ -204,7 +234,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
 
     protected function checkSetField($name) {
         if ( $name == $this->getPrimaryKey() && !$this->__is_new ) {
-            throw new \Exception('Can not change the primary key for stored data.');
+            throw new \Exception('Can not change the primary key for stored data.', -10003);
         }
     }
     
@@ -231,6 +261,103 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return $result;
     }
     
+    protected function beforeInsert($comment, $data) {
+        $this->eventSetActive(DBEvent::BEFORE_INSERT);
+        DB::notify(new DBEvent(DBEvent::BEFORE_INSERT, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::BEFORE_INSERT);
+        $this->__immutable = true;
+    }
+    protected function intranInsert($comment, $data) {
+        $this->eventSetActive(DBEvent::INTRAN_INSERT);
+        DB::notify(new DBEvent(DBEvent::INTRAN_INSERT, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::INTRAN_INSERT);
+    }
+    protected function afterInsert($comment, $data) {
+        $this->eventSetActive(DBEvent::AFTER_INSERT);
+        DB::notify(new DBEvent(DBEvent::AFTER_INSERT, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::AFTER_INSERT);
+        $this->clearModifiedFeilds();
+        $this->__immutable = false;
+    }
+    
+    protected function beforeUpdate($comment, $data) {
+        $this->eventSetActive(DBEvent::BEFORE_UPDATE);
+        DB::notify(new DBEvent(DBEvent::BEFORE_UPDATE, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::BEFORE_UPDATE);
+        $this->__immutable = true;
+    }
+    protected function intranUpdate($comment, $data) {
+        $this->eventSetActive(DBEvent::INTRAN_UPDATE);
+        DB::notify(new DBEvent(DBEvent::INTRAN_UPDATE, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::INTRAN_UPDATE);
+    }
+    protected function afterUpdate($comment, $data) {
+        $this->eventSetActive(DBEvent::AFTER_UPDATE);
+        DB::notify(new DBEvent(DBEvent::AFTER_UPDATE, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::AFTER_UPDATE);
+        $this->clearModifiedFeilds();
+        $this->__immutable = false;
+    }
+    
+    protected function beforeDelete($comment, $data) {
+        $this->eventSetActive(DBEvent::BEFORE_DELETE);
+        DB::notify(new DBEvent(DBEvent::BEFORE_DELETE, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::BEFORE_DELETE);
+        $this->__immutable = true;
+    }
+    protected function intranDelete($comment, $data) {
+        $this->eventSetActive(DBEvent::INTRAN_DELETE);
+        DB::notify(new DBEvent(DBEvent::INTRAN_DELETE, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive($event_type);
+    }
+    protected function afterDelete($comment, $data) {
+        $this->eventSetActive(DBEvent::AFTER_DELETE);
+        DB::notify(new DBEvent(DBEvent::AFTER_DELETE, $this, array_keys($this->__fields_modified), $data, $comment));
+        $this->eventUnsetActive(DBEvent::AFTER_DELETE);
+        $this->__immutable = false;
+        $this->__data[$this->getAutoIncrement()] = null;
+        $this->__is_new = true;
+    }
+    
+    protected function beforeModify($name, $value) {
+        $this->eventSetActive(DBEvent::BEFORE_MODIFY);
+        $this->__immutable = true;
+        DB::notify(new DBEvent(DBEvent::BEFORE_MODIFY, $this, $name, $value));
+        $this->eventUnsetActive(DBEvent::BEFORE_MODIFY);
+    }
+    protected function afterModify($name, $value) {
+        $this->eventSetActive(DBEvent::AFTER_MODIFY);
+        $this->addModifiedField($name);
+        DB::notify(new DBEvent(DBEvent::AFTER_MODIFY, $this, $name, $value));
+        $this->__immutable = false;
+        $this->eventUnsetActive(DBEvent::AFTER_MODIFY);
+    }
+    
+    protected function addModifiedField($name) {
+        if (isset($this->__fields_modified[$name])) {
+            $this->__fields_modified[$name]++;
+        } else {
+            $this->__fields_modified[$name] = 1;
+        }
+    }
+    protected function clearModifiedFeilds() {
+        $this->__fields_modified = [];
+    }
+
+    protected function eventSetActive(int $event_type) {
+        if (isset($this->__events_active[$event_type])) {
+            throw new \Exception("Event ". DBEvent::typeName($event_type). " is already active. Possible loop.", -10014);
+        }
+        $this->__events_active[$event_type] = true;
+    }
+    protected function eventUnsetActive(int $event_type) {
+        if (!isset($this->__events_active[$event_type])) {
+            throw new \Exception("Event ". DBEvent::typeName($event_type). " was not active.", -10003);
+        } 
+        unset($this->__events_active[$event_type]);
+    }
+
+
     protected function _test_data() {
         return [
             'replaceVars' => [
