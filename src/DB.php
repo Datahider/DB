@@ -19,6 +19,7 @@ class DB {
     public static $database;
     protected static $namespace = '';
     protected static $trackers = [
+        DBEvent::ALL_EVENTS => [],
         DBEvent::BEFORE_MODIFY => [],
         DBEvent::BEFORE_INSERT => [],
         DBEvent::BEFORE_UPDATE => [],
@@ -50,17 +51,35 @@ class DB {
     
     public static function notify(DBEvent $event) {
 
-        if (isset(self::$trackers[$event->type][get_class($event->object)])) {
-            foreach (self::$trackers[$event->type][get_class($event->object)] as $tracker) {
+        DB::notifyArray(
+                isset(self::$trackers[$event->type][get_class($event->object)]) 
+                ? self::$trackers[$event->type][get_class($event->object)]
+                : null, $event);
+        DB::notifyArray(
+                isset(self::$trackers[$event->type]['*']) 
+                ? self::$trackers[$event->type]['*']
+                : null, $event);
+        DB::notifyArray(
+                isset(self::$trackers[DBEvent::ALL_EVENTS][get_class($event->object)]) 
+                ? self::$trackers[DBEvent::ALL_EVENTS][get_class($event->object)]
+                : null, $event);
+        DB::notifyArray(
+                isset(self::$trackers[DBEvent::ALL_EVENTS]['*']) 
+                ? self::$trackers[DBEvent::ALL_EVENTS]['*']
+                : null, $event);
+        
+    }
+
+    protected static function notifyArray(array|null $notifiers, DBEvent $event) {
+        if (isset($notifiers)) {
+            foreach ($notifiers as $tracker) {
                 if (is_string($tracker)) {
                     $tracker = new $tracker();
                 }
                 $tracker->track($event);
             }
         }
-        
     }
-
 
     public static function connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4') {
         

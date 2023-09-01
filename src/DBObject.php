@@ -128,12 +128,14 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return count($this->__fields_modified) > 0;
     }
 
-    public function asString() {
+    public function asString($fields=3) {
         $class = DB::shortClassName($this);
         $result = "$class: ";
         
         foreach ($this->__data as $key => $value) {
             $result .= "\n\t$key = $value";
+            $fields--;
+            if (!$fields) { break; }
         }
         return $result;
     }

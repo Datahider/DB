@@ -27,6 +27,8 @@ class DBEvent {
     const AFTER_INSERT = 21; // Ocurrs after inseritng a DBObject
     const AFTER_UPDATE = 22; // Ocurrs after updating a DBObject
     const AFTER_DELETE = 23; // Ocurrs after deleting a DBObject
+
+    const ALL_EVENTS = -1; // Used to add event tracker for all events
     
     const TYPE_NAMES = [
         self::BEFORE_MODIFY => 'BEFORE_MODIFY',

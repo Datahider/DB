@@ -17,10 +17,10 @@ class DBChildTrackerExample extends DBTracker {
     public function track(DBEvent $event) {
         switch ($event->type) {
             case DBEvent::AFTER_INSERT:
-                error_log("A new object is inserted\n". $event->object->asString());
+                error_log("A new object is inserted\n". $event->object->asString(4));
                 break;
             case DBEvent::AFTER_UPDATE:
-                error_log("The object is updated.\n". $event->object->asString(). "\nModified fields are: ". implode(", ", $event->fields));
+                error_log("The object is updated.\n". $event->object->asString(4). "\nModified fields are: ". implode(", ", $event->fields));
                 break;
             case DBEvent::AFTER_MODIFY:
                 error_log("I see the Sun. And a new ". $event->fields. ': '. $event->data);
@@ -35,7 +35,7 @@ class DBChildTrackerExample extends DBTracker {
                 }
                 break;
             default:
-                throw new \Exception('Этот трекер не умеет обрабатывать события типа '. DBEvent::typeName($event->type));
+                error_log('Этот трекер не умеет обрабатывать события типа '. DBEvent::typeName($event->type));
         }
     }
 }

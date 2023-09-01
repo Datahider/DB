@@ -45,5 +45,8 @@ Some useful operations:
 ## Special stuff
 If you need some special processing (like checking or filling data) you may override DBObject::fetch(...) and DBObject::write() methods.
 
+## TODO
+- добавить параметр формата к DBObject->asString();
+
 ## Epilogue
 That's it. Have fun.
