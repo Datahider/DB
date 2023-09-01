@@ -178,6 +178,15 @@ class DB {
             return $class;
         }
     }
+    
+    public static function shortClassName($class_or_object) {
+        if (!is_string($class_or_object)) {
+            $class_or_object = get_class($class_or_object);
+        }
+        $matches = [];
+        preg_match("/\\\\?([^\\\\]+)$/", $class_or_object, $matches);
+        return $matches[1];
+    }
 
     const SQL_SHOW_TABLES = "SHOW TABLES";
     const SQL_DROP_TABLE = "DROP TABLE %TABLE_NAME%";
