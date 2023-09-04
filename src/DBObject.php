@@ -52,7 +52,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected static $__labels = [];
     protected static $__pri = [];
     protected static $__autoincrement = [];
-    
+    protected static $__data_struct_checked = [];
+
+
     public function __construct($where = null, $params = []) {
         $this->__table_name = static::TABLE_NAME;
 
@@ -65,12 +67,16 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
    
-    public function fetch($where, $params = []) {
-        $sth = $this->prepare(static::SQL_SELECT, [ 'WHERE' => $where ]);
+    public function fetch($where=null, $params = []) {
+        if ($where === null) {
+            $where = 1;
+        }
         
         if (is_scalar($params)) {
             $params = [$params];
         }
+        
+        $sth = $this->prepare(static::SQL_SELECT, [ 'WHERE' => $where ]);
         
         $sth->execute($params);
         
@@ -86,6 +92,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         
         $this->__data = $result;
         $this->__is_new = false;
+        $this->clearModifiedFeilds();
         return true;
     }
     
@@ -129,7 +136,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
 
     public function asString($fields=3) {
-        $class = DB::shortClassName($this);
+        $class = DB::classShortName($this);
         $result = "$class: ";
         
         foreach ($this->__data as $key => $value) {
@@ -199,7 +206,48 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return DB::$pdo->prepare($this->replaceVars($sql, $vars));
     }
     
+    protected function createAlterTable() {
+        $class = get_class($this);
+        if (!defined("$class::TABLE_NAME")) {
+            throw new \Exception("Constant $class::TABLE_NAME does not defined.", -10007);
+        }
+        if (!defined("$class::SQL_CREATE_TABLE")) {
+            throw new \Exception("Constant $class::SQL_CREATE_TABLE does not defined.", -10007);
+        }
+        
+        $sth_create = static::prepare(static::SQL_CREATE_TABLE);
+        $sth_create->execute();
+
+        $this->upgradeTable();
+    }
+    
+    protected function upgradeTable() {
+        $class = get_class($this);
+
+        $sth_get_version = static::prepare(static::SQL_FETCH_TABLE_VERSION);
+        $sth_get_version->setFetchMode(\PDO::FETCH_COLUMN, 0);
+        
+        for($i=0; $i<100; $i++) {
+            $sth_get_version->execute();
+            $version = $sth_get_version->fetch();
+            
+            $const = str_replace(['v', '.'], '_', "$class::SQL_UPGRADE_FROM$version");
+            if (defined($const)) {
+                $sth_upgrade = static::prepare(constant($const));
+                $sth_upgrade->execute();
+            } else {
+                self::$__data_struct_checked[$class] = true;
+                return true;
+            }
+        }
+        
+        throw new \Exception("Upgrade data structure iteration limit exceded.", -10009);
+    }
+    
     protected function initDataStructure($reinit=false) {
+        if (empty(self::$__data_struct_checked[get_class($this)])) {
+            $this->createAlterTable();
+        }
         if (!isset(self::$__fields[get_class($this)]) || $reinit) {
             $this->fetchDataStructure();
         }
@@ -214,12 +262,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         
         $this->__field_value_pairs = implode(", ", $pairs);
 
-        if (count($this->__data) === 0) {
-            $this->initData();
-            $this->__is_new = true;
-        } else {
-            $this->__is_new = false;
-        }
+        $this->initData();
     }
     
     protected function fetchDataStructure() {
@@ -250,7 +293,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
     
-    protected function replaceVars($string, $vars) {
+    protected function replaceVars($string, $vars=[]) {
     
         $default_vars = [
             'DATABASE' => DB::$database,
@@ -369,22 +412,6 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         unset($this->__events_active[$event_type]);
     }
 
-
-    protected function _test_data() {
-        return [
-            'replaceVars' => [
-                ['testing %DATABASE% name replacing', 'testing test name replacing'],
-                ['testing %TABLE_NAME% replacing', 'testing t_test_table2 replacing'],
-                ['testing both %DATABASE%.%TABLE_NAME%', 'testing both test.t_test_table2'],
-                ['testing %WRONG_VAR%', 'testing %WRONG_VAR%'],
-                ['testing none', 'testing none'],
-            ],
-            'fetch' => '_test_skip_',
-            'prepare' => '_test_skip_',
-            'checkDataStructure' => '_test_skip_',
-        ];
-    }
-
     const SQL_SELECT = <<<END
             SELECT %FIELDS_LIST% FROM %TABLE_NAME%
             WHERE %WHERE%
@@ -409,5 +436,5 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             SELECT table_comment FROM information_schema.tables 
             WHERE table_schema = '%DATABASE%' AND TABLE_NAME = '%TABLE_NAME%';
             END;
-
+    
 }

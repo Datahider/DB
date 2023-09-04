@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "36dfa6ace06964f57896e7e152f8bb70",
+    "content-hash": "92e3da42b381b3326791db53c7f6753d",
     "packages": [
         {
             "name": "losthost/self-testing-suite",
-            "version": "1.0.0",
+            "version": "1.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Datahider/lhTestingSuite.git",
-                "reference": "102abc22ea33e8b6370f40dd2466b9c2c4871b47"
+                "reference": "664ea58491888d35ebb727630f7db7628d2db95b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Datahider/lhTestingSuite/zipball/102abc22ea33e8b6370f40dd2466b9c2c4871b47",
-                "reference": "102abc22ea33e8b6370f40dd2466b9c2c4871b47",
+                "url": "https://api.github.com/repos/Datahider/lhTestingSuite/zipball/664ea58491888d35ebb727630f7db7628d2db95b",
+                "reference": "664ea58491888d35ebb727630f7db7628d2db95b",
                 "shasum": ""
             },
             "require": {
@@ -39,9 +39,9 @@
             "description": "A parrent class for self-testing classes",
             "support": {
                 "issues": "https://github.com/Datahider/lhTestingSuite/issues",
-                "source": "https://github.com/Datahider/lhTestingSuite/tree/1.0.0"
+                "source": "https://github.com/Datahider/lhTestingSuite/tree/1.0.4"
             },
-            "time": "2023-07-04T17:11:04+00:00"
+            "time": "2023-09-04T05:48:36+00:00"
         }
     ],
     "packages-dev": [],

@@ -51,6 +51,7 @@ class DBEvent {
     protected $fields;
     protected $comment;
     protected $data;
+    protected $notified;
 
     public function __construct(int $type, DBObject $object, string|array|null $fields, mixed $data=null, string $comment='') {
         $this->type = $type;
@@ -58,6 +59,7 @@ class DBEvent {
         $this->fields = $fields;
         $this->comment = $comment;
         $this->data = $data;
+        $this->notified = [];
     }
     
     public function __get($name) {
@@ -73,4 +75,18 @@ class DBEvent {
         throw new Exception('Unknown event type:'. $event_type);
     }
     
+    public function addNotified(DBTracker $tracker) {
+        if (array_search($tracker, $this->notified, true) === false) {
+            $this->notified[] = $tracker;
+            return true;
+        }
+        return false;
+    }
+    
+    public function isNotified(DBTracker $tracker) {
+        if (array_search($tracker, $this->notified, true) === false) {
+            return false;
+        }
+        return true;
+    }
 }

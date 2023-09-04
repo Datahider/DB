@@ -12,7 +12,7 @@ namespace losthost\DB;
  *
  * @author drweb
  */
-abstract class DBTracker {
+abstract class DBTracker extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     abstract public function track(DBEvent $event);
     

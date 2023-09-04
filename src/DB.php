@@ -12,7 +12,7 @@ namespace losthost\DB;
  *
  * @author drweb
  */
-class DB {
+class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     public static $pdo;
     public static $prefix;
@@ -49,36 +49,63 @@ class DB {
         }
     }
     
+    public static function clearTrackers() {
+        self::$trackers = [
+            DBEvent::ALL_EVENTS => [],
+            DBEvent::BEFORE_MODIFY => [],
+            DBEvent::BEFORE_INSERT => [],
+            DBEvent::BEFORE_UPDATE => [],
+            DBEvent::BEFORE_DELETE => [],
+            DBEvent::INTRAN_INSERT => [],
+            DBEvent::INTRAN_UPDATE => [],
+            DBEvent::INTRAN_DELETE => [],
+            DBEvent::AFTER_MODIFY => [],
+            DBEvent::AFTER_INSERT => [],
+            DBEvent::AFTER_UPDATE => [],
+            DBEvent::AFTER_DELETE => [],
+        ];
+        return self::$trackers;
+    }
+    
     public static function notify(DBEvent $event) {
 
-        DB::notifyArray(
+        $result = DB::notifyArray(
                 isset(self::$trackers[$event->type][get_class($event->object)]) 
                 ? self::$trackers[$event->type][get_class($event->object)]
                 : null, $event);
-        DB::notifyArray(
+        $result += DB::notifyArray(
                 isset(self::$trackers[$event->type]['*']) 
                 ? self::$trackers[$event->type]['*']
                 : null, $event);
-        DB::notifyArray(
+        $result += DB::notifyArray(
                 isset(self::$trackers[DBEvent::ALL_EVENTS][get_class($event->object)]) 
                 ? self::$trackers[DBEvent::ALL_EVENTS][get_class($event->object)]
                 : null, $event);
-        DB::notifyArray(
+        $result += DB::notifyArray(
                 isset(self::$trackers[DBEvent::ALL_EVENTS]['*']) 
                 ? self::$trackers[DBEvent::ALL_EVENTS]['*']
                 : null, $event);
         
+        return $result;
+        
     }
 
-    protected static function notifyArray(array|null $notifiers, DBEvent $event) {
+    protected static function notifyArray(array|null $notifiers, DBEvent $event) : int {
+        
+        $result = 0;
         if (isset($notifiers)) {
             foreach ($notifiers as $tracker) {
                 if (is_string($tracker)) {
                     $tracker = new $tracker();
                 }
-                $tracker->track($event);
+                if (!$event->isNotified($tracker)) {
+                    $tracker->track($event);
+                    $event->addNotified($tracker);
+                    $result++;
+                }
             }
         }
+        return $result;
     }
 
     public static function connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4') {
@@ -101,27 +128,19 @@ class DB {
         
     }
 
-    public static function checkDataStructure($classes, $upgrade=false) {
-        
-        if (!is_array($classes)) {
-            $classes  = explode(' ', $classes);
-        }
-        
-        $result = false;
-        foreach ($classes as $class) {
-            $result |= self::checkClassDataStructure(self::classFullName($class), $upgrade);
-        }
-        
-        return $result;
-    }
-
     public static function setClassNamespace($namespace) {
-        self::$namespace = $namespace;
+        if (preg_match("/\\\\$/", $namespace)) {
+            self::$namespace = $namespace;
+        } else {
+            self::$namespace = "$namespace\\";
+        }
+        return self::$namespace;
     }
     
     static public function dropAllTables($sure=false, $absolutely=false) {
+
         if (!$sure) {
-            throw new \Exception('You have to be sure to drop all tables');
+            throw new \Exception('You have to be sure to drop all tables', -10003);
         }
 
         $sth_tables = self::prepare(self::SQL_SHOW_TABLES);
@@ -134,53 +153,17 @@ class DB {
             }
 
             if (!$absolutely) {
-                throw new \Exception("You have to be absolutely sure to drop table $table");
+                throw new \Exception("You have to be absolutely sure to drop table $table", -10007);
             }
 
             $sth_drop = self::prepare(str_replace("%TABLE_NAME%", $table, self::SQL_DROP_TABLE));
             $sth_drop->execute();
         }
+        
+        return true;
+        
     }
     
-    protected static function checkClassDataStructure($_class, $upgrade) {
-        $class = self::classFullName($_class);
-        
-        if (!defined("$class::SQL_CREATE_TABLE")) {
-            throw new \Exception("const SQL_CREATE_TABLE is not defined for class $class.", -10007);
-        }
-        
-        $sth_create = self::prepare($class::SQL_CREATE_TABLE, $class::TABLE_NAME);
-        $sth_create->execute();
-        
-        return self::upgradeTable($class, $upgrade); 
-    }
-    
-    protected static function upgradeTable($_class, $upgrade) {
-
-        $class = self::classFullName($_class);
-        
-        $sth_get_version = self::prepare($class::SQL_FETCH_TABLE_VERSION, $class::TABLE_NAME);
-        $sth_get_version->setFetchMode(\PDO::FETCH_COLUMN, 0);
-        
-        for($i=0; $i<100; $i++) {
-            $sth_get_version->execute();
-            $version = $sth_get_version->fetch();
-            
-            $const = str_replace(['v', '.'], '_', "$class::SQL_UPGRADE_FROM$version");
-            if (defined($const) && $upgrade) {
-                $sth_upgrade = self::prepare(constant($const), $class::TABLE_NAME);
-                $sth_upgrade->execute();
-            } elseif (defined($const)) {
-                return true;
-            } else {
-                return false;
-            }
-        }
-        
-        throw new \Exception("Upgrade data structure iteration limit exceded.", -10009);
-        
-    }
-
     protected static function prepare($_sql, $table_name='', $condition=1) {
         
         $sql = self::replaceVars($_sql, $table_name, $condition);
@@ -198,7 +181,11 @@ class DB {
         }
     }
     
-    public static function shortClassName($class_or_object) {
+//    public static function shortClassName($class_or_object) {
+//        return self::classShortName($class_or_object);
+//    }
+    
+    public static function classShortName($class_or_object) {
         if (!is_string($class_or_object)) {
             $class_or_object = get_class($class_or_object);
         }
@@ -210,4 +197,110 @@ class DB {
     const SQL_SHOW_TABLES = "SHOW TABLES";
     const SQL_DROP_TABLE = "DROP TABLE %TABLE_NAME%";
     
+    public function _test_connected() {
+        if (!self::$pdo) {
+            throw new \Exception("Please call DB::connect('localhost', 'test', 'correct_password', 'test', 't_') before start testing this class.");
+        } else {
+            self::$pdo->query("SELECT 1");
+            echo '.';
+            if (self::$database != 'test') {
+                throw new \Exception("The database name have to be `test`.");
+            }
+            echo '.';
+            if (self::$prefix != 't_') {
+                throw new \Exception("The prefix have to be `t_`.");
+            }
+            echo '.';
+        }
+    }
+    
+    public function _test_addTracker() {
+        $tracker = new DBTestTracker();
+        self::addTracker(DBEvent::BEFORE_MODIFY, 'losthost\DB\DBTestObject', $tracker);
+        echo '.';
+        self::addTracker(DBEvent::AFTER_MODIFY, 'losthost\DB\DBTestObject', $tracker);
+        echo '.';
+        self::addTracker(DBEvent::ALL_EVENTS, '*', $tracker);
+        echo '.';
+    }
+    
+    public function _test_notify() {
+        
+        if (($result = $this->notify(new DBEvent(DBEvent::BEFORE_MODIFY, new DBTestObject(), 'id', 1))) != 1) {
+            throw new \Exception('Awaiting result to be 1 but got '. $result);
+        }
+        echo '.';
+        if (($result = $this->notify(new DBEvent(DBEvent::BEFORE_UPDATE, new DBTestObject(), 'id', 1))) != 1) {
+            throw new \Exception('Awaiting result to be 1 but got '. $result);
+        }
+        echo '.';
+        
+    }
+    
+    public function _test_prepare() {
+        $sth = $this->prepare("SELECT 1 FROM %DATABASE%.%TABLE_NAME% WHERE %CONDITION%", 'sometable', '2=3');
+        if ($sth->queryString != "SELECT 1 FROM test.t_sometable WHERE 2=3") {
+            throw new \Exception('Awaiting queryString to be "SELECT 1 FROM test.t_sometable WHERE 2=3" but got "'. $sth->queryString. '"');
+        }
+        echo '.';
+    }
+    
+    public function _test_PrepareDB() {
+        $sth = $this->prepare("CREATE TABLE IF NOT EXISTS t_testtable ( id INT )");
+        $sth->execute();
+    }
+
+    public function _test() {
+        return parent::_test();
+    }
+    
+    public function _test_data() {
+        return [
+            'connect' => '_test_connected',
+            'setClassNamespace' => [
+                ['losthost\\DB', 'losthost\\DB\\'],
+                ['losthost\\DB\\', 'losthost\\DB\\'],
+            ],
+            'classFullName' => [
+                ['someclass', 'losthost\\DB\\someclass'],
+                ['losthost\\otherclass', 'losthost\\otherclass'],
+            ],
+            'classShortName' => [
+                ['losthost\\someclass', 'someclass'],
+                [$this, 'DB'],
+            ],
+            'replaceVars' => [
+                ['%DATABASE% %TABLE_NAME% %CONDITION%', 'sometable', 'test t_sometable 1'],
+                ['%DATABASE% %TABLE_NAME% %CONDITION%',  'sometable', '888', 'test t_sometable 888'],
+            ],
+            'prepare' => '_test_prepare',
+            '_test_PrepareDB' => [
+                [null]
+            ],
+            'dropAllTables' => [
+                [new \Exception('', -10003)],
+                [true, new \Exception('', -10007)],
+                [true, true, true],
+            ],
+            'addTracker' => '_test_addTracker',
+            'notifyArray' => '_test_skip_',
+            'notify' => '_test_notify',
+            'clearTrackers' => [
+                [[
+                    DBEvent::ALL_EVENTS => [],
+                    DBEvent::BEFORE_MODIFY => [],
+                    DBEvent::BEFORE_INSERT => [],
+                    DBEvent::BEFORE_UPDATE => [],
+                    DBEvent::BEFORE_DELETE => [],
+                    DBEvent::INTRAN_INSERT => [],
+                    DBEvent::INTRAN_UPDATE => [],
+                    DBEvent::INTRAN_DELETE => [],
+                    DBEvent::AFTER_MODIFY => [],
+                    DBEvent::AFTER_INSERT => [],
+                    DBEvent::AFTER_UPDATE => [],
+                    DBEvent::AFTER_DELETE => [],
+                ]]
+            ],
+        ];
+    }
 }

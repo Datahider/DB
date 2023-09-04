@@ -12,7 +12,7 @@ namespace losthost\DB;
  *
  * @author drweb
  */
-class DBChildTrackerExample extends DBTracker {
+class DBTestTracker extends DBTracker {
     //put your code here
     public function track(DBEvent $event) {
         switch ($event->type) {
