@@ -55,13 +55,13 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected static $__data_struct_checked = [];
 
 
-    public function __construct($where = null, $params = []) {
+    public function __construct($where = null, $params = [], $create=false) {
         $this->__table_name = static::TABLE_NAME;
 
         $this->initDataStructure();
         
         if ($where !== null) {
-            if (!$this->fetch($where, $params)) {
+            if (!$this->fetch($where, $params) && !$create) {
                 throw new \Exception('Not found', -10002);
             }
         }
