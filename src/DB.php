@@ -14,6 +14,8 @@ namespace losthost\DB;
  */
 class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     
+    const DATE_FORMAT = 'Y-m-d H:i:s';
+    
     public static $pdo;
     public static $prefix;
     public static $database;
