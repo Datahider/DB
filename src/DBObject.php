@@ -36,7 +36,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
      */
 
     protected $__table_name;
-    
+    protected $__in_transaction;
+
+
     protected $__fields_list;
     protected $__values_list;
     protected $__field_value_pairs;
@@ -107,23 +109,37 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected function insert($comment, $data) {
         $sth = $this->prepare(static::SQL_INSERT);
         $this->beforeInsert($comment, $data);
-        DB::$pdo->beginTransaction();
+        if (DB::$pdo->inTransaction()) {
+            $this->__in_transaction = true;
+        } else {
+            DB::$pdo->beginTransaction();
+            $this->__in_transaction = false;
+        }
         $sth->execute($this->__data);
         if ($this->getAutoIncrement()) {
             $this->__data[$this->getAutoIncrement()] = DB::$pdo->lastInsertId();
         }
         $this->__is_new = false;
         $this->intranInsert($comment, $data);
-        DB::$pdo->commit();
+        if (!$this->__in_transaction) {
+            DB::$pdo->commit();
+        }
         $this->afterInsert($comment, $data);
     }
     protected function update($comment, $data) {
         $sth = $this->prepare(static::SQL_UPDATE, [ 'WHERE' => $this->getPrimaryKey(). ' = :'. $this->getPrimaryKey()]);
         $this->beforeUpdate($comment, $data);
-        DB::$pdo->beginTransaction();
+        if (DB::$pdo->inTransaction()) {
+            $this->__in_transaction = true;
+        } else {
+            DB::$pdo->beginTransaction();
+            $this->__in_transaction = false;
+        }
         $sth->execute($this->__data);
         $this->intranUpdate($comment, $data);
-        DB::$pdo->commit();
+        if (!$this->__in_transaction) {
+            DB::$pdo->commit();
+        }
         $this->afterUpdate($comment, $data);
     }
     
