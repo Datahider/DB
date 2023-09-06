@@ -230,7 +230,7 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
             throw new \Exception('Awaiting result to be 1 but got '. $result);
         }
         echo '.';
-        if (($result = $this->notify(new DBEvent(DBEvent::BEFORE_UPDATE, new DBTestObject(), 'id', 1))) != 1) {
+        if (($result = $this->notify(new DBEvent(DBEvent::BEFORE_UPDATE, new DBTestObject(), ['id']))) != 1) {
             throw new \Exception('Awaiting result to be 1 but got '. $result);
         }
         echo '.';

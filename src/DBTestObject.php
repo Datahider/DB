@@ -17,7 +17,7 @@ class DBTestObject extends DBObject {
     /*
      * Define table name
      */
-    const TABLE_NAME = 'example_objects';
+    const TABLE_NAME = 'test_objects';
     
     /*
      *  Define CREATE_TABLE constant
@@ -99,8 +99,8 @@ class DBTestObject extends DBObject {
             
             'replaceVars' => [
                 ['testing %DATABASE% name replacing', 'testing test name replacing'],
-                ['testing %TABLE_NAME% replacing', 'testing t_example_objects replacing'],
-                ['testing both %DATABASE%.%TABLE_NAME%', 'testing both test.t_example_objects'],
+                ['testing %TABLE_NAME% replacing', 'testing t_test_objects replacing'],
+                ['testing both %DATABASE%.%TABLE_NAME%', 'testing both test.t_test_objects'],
                 ['testing %WRONG_VAR%', 'testing %WRONG_VAR%'],
                 ['testing none', 'testing none'],
             ],

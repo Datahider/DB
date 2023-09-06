@@ -15,27 +15,47 @@ namespace losthost\DB;
 class DBTestTracker extends DBTracker {
     //put your code here
     public function track(DBEvent $event) {
+        global $test_events;
+        
         switch ($event->type) {
-            case DBEvent::AFTER_INSERT:
-                error_log("A new object is inserted\n". $event->object->asString(4));
+            case DBEvent::BEFORE_MODIFY:
+                $test_events[] = "BEFORE_MODIFY:$event->fields=$event->data";
                 break;
-            case DBEvent::AFTER_UPDATE:
-                error_log("The object is updated.\n". $event->object->asString(4). "\nModified fields are: ". implode(", ", $event->fields));
+            case DBEvent::BEFORE_INSERT:
+                $test_events[] = "BEFORE_INSERT";
                 break;
-            case DBEvent::AFTER_MODIFY:
-                error_log("I see the Sun. And a new ". $event->fields. ': '. $event->data);
+            case DBEvent::BEFORE_UPDATE:
+                $test_events[] = "BEFORE_UPDATE:". implode(",", $event->fields);
+                break;
+            case DBEvent::BEFORE_DELETE:
+                $test_events[] = "BEFORE_DELETE";
+                break;
+            
+            case DBEvent::INTRAN_INSERT:
+                $test_events[] = "INTRAN_INSERT";
                 break;
             case DBEvent::INTRAN_UPDATE:
-                try {
-                    // Trying to modify object in immutable state
-                    $event->object->name = 'A new name';
-                    throw new \Exception('ERROR! I can modify immutable object!');
-                } catch (\Exception $ex) {
-                    error_log("That's right! I can't modify object in immutable state");  
-                }
+                $test_events[] = "INTRAN_UPDATE:". implode(",", $event->fields);
                 break;
+            case DBEvent::INTRAN_DELETE:
+                $test_events[] = "INTRAN_DELETE";
+                break;
+            
+            case DBEvent::AFTER_MODIFY:
+                $test_events[] = "AFTER_MODIFY:$event->fields=$event->data";
+                break;
+            case DBEvent::AFTER_INSERT:
+                $test_events[] = "AFTER_INSERT";
+                break;
+            case DBEvent::AFTER_UPDATE:
+                $test_events[] = "AFTER_UPDATE:". implode(",", $event->fields);
+                break;
+            case DBEvent::AFTER_DELETE:
+                $test_events[] = "AFTER_DELETE";
+                break;
+
             default:
-                error_log('Этот трекер не умеет обрабатывать события типа '. DBEvent::typeName($event->type));
+                throw new Exception('Получено непредусмотренное тестом событие типа '. DBEvent::typeName($event->type), -10003);
         }
     }
 }
