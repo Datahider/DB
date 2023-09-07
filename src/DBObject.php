@@ -200,7 +200,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
         if (array_key_exists($name, $this->__data)) {
             $this->checkSetField($name);
-            if ($this->__data[$name] != $value) {
+            if ($this->__data[$name] !== $value) {
                 $this->beforeModify($name, $value);
                 $this->__data[$name] = $value;
                 $this->afterModify($name, $value);
