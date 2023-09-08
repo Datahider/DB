@@ -36,7 +36,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
      */
 
     protected $__table_name;
-    protected $__in_transaction;
+    protected $__commit;
 
 
     protected $__fields_list;
@@ -110,10 +110,10 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $sth = $this->prepare(static::SQL_INSERT);
         $this->beforeInsert($comment, $data);
         if (DB::$pdo->inTransaction()) {
-            $this->__in_transaction = true;
+            $this->__commit = false;
         } else {
             DB::$pdo->beginTransaction();
-            $this->__in_transaction = false;
+            $this->__commit = true;
         }
         $sth->execute($this->__data);
         if ($this->getAutoIncrement()) {
@@ -121,7 +121,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
         $this->__is_new = false;
         $this->intranInsert($comment, $data);
-        if (!$this->__in_transaction) {
+        if ($this->__commit) {
             DB::$pdo->commit();
         }
         $this->afterInsert($comment, $data);
@@ -130,14 +130,14 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $sth = $this->prepare(static::SQL_UPDATE, [ 'WHERE' => $this->getPrimaryKey(). ' = :'. $this->getPrimaryKey()]);
         $this->beforeUpdate($comment, $data);
         if (DB::$pdo->inTransaction()) {
-            $this->__in_transaction = true;
+            $this->__commit = false;
         } else {
             DB::$pdo->beginTransaction();
-            $this->__in_transaction = false;
+            $this->__commit = true;
         }
         $sth->execute($this->__data);
         $this->intranUpdate($comment, $data);
-        if (!$this->__in_transaction) {
+        if ($this->__commit) {
             DB::$pdo->commit();
         }
         $this->afterUpdate($comment, $data);
@@ -223,6 +223,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     protected function createAlterTable() {
+
         $class = get_class($this);
         if (!defined("$class::TABLE_NAME")) {
             throw new \Exception("Constant $class::TABLE_NAME does not defined.", -10007);
@@ -231,17 +232,18 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             throw new \Exception("Constant $class::SQL_CREATE_TABLE does not defined.", -10007);
         }
         
-        $sth_create = static::prepare(static::SQL_CREATE_TABLE);
-        $sth_create->execute();
-
-        $this->upgradeTable();
-    }
-    
-    protected function upgradeTable() {
-        $class = get_class($this);
-
         $sth_get_version = static::prepare(static::SQL_FETCH_TABLE_VERSION);
         $sth_get_version->setFetchMode(\PDO::FETCH_COLUMN, 0);
+        $sth_get_version->execute();
+        $version = $sth_get_version->fetch();
+
+        if ($version === false) { // таблица не найдена, создаём
+            if (DB::$pdo->inTransaction()) {
+                throw new \Exception("You can't create table in transaction.", -10013);
+            }
+            $sth_create = static::prepare(static::SQL_CREATE_TABLE);
+            $sth_create->execute();
+        }
         
         for($i=0; $i<100; $i++) {
             $sth_get_version->execute();
@@ -249,6 +251,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             
             $const = str_replace(['v', '.'], '_', "$class::SQL_UPGRADE_FROM$version");
             if (defined($const)) {
+                if (DB::$pdo->inTransaction()) {
+                    throw new \Exception("You can't create table in transaction.", -10013);
+                }
                 $sth_upgrade = static::prepare(constant($const));
                 $sth_upgrade->execute();
             } else {
@@ -258,6 +263,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
         
         throw new \Exception("Upgrade data structure iteration limit exceded.", -10009);
+
     }
     
     protected function initDataStructure($reinit=false) {
@@ -470,7 +476,6 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             '__get' => '_test_skip_',
             'prepare' => '_test_skip_',
             'createAlterTable' => '_test_skip_',
-            'upgradeTable' => '_test_skip_',
             'initDataStructure' => '_test_skip_',
             'fetchDataStructure' => '_test_skip_',
             'initData' => '_test_skip_',

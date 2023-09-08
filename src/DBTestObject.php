@@ -92,7 +92,6 @@ class DBTestObject extends DBObject {
         return [
             'initDataStructure' => '_test_skip_',   // used in __constructor
             'createAlterTable' => '_test_skip_',    // used in __constructor
-            'upgradeTable' => '_test_skip_',        // used in __constructor
             'fetchDataStructure' => '_test_skip_',  // used in __constructor
             'prepare' => '_test_skip_',             // used in __constructor
             'initData' => '_test_skip_',            // used in __constructor
