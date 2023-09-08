@@ -453,4 +453,44 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             WHERE table_schema = '%DATABASE%' AND TABLE_NAME = '%TABLE_NAME%';
             END;
     
+    protected function _test_data() {
+        return [
+            'fetch' => '_test_skip_',
+            'write' => '_test_skip_',
+            'insert' => '_test_skip_',
+            'update' => '_test_skip_',
+            'isNew' => '_test_skip_',
+            'isModified' => '_test_skip_',
+            'asString' => '_test_skip_',
+            'getFields' => '_test_skip_',
+            'getAutoIncrement' => '_test_skip_',
+            'getPrimaryKey' => '_test_skip_',
+            'getLabel' => '_test_skip_',
+            '__set' => '_test_skip_',
+            '__get' => '_test_skip_',
+            'prepare' => '_test_skip_',
+            'createAlterTable' => '_test_skip_',
+            'upgradeTable' => '_test_skip_',
+            'initDataStructure' => '_test_skip_',
+            'fetchDataStructure' => '_test_skip_',
+            'initData' => '_test_skip_',
+            'checkSetField' => '_test_skip_',
+            'replaceVars' => '_test_skip_',
+            'beforeInsert' => '_test_skip_',
+            'intranInsert' => '_test_skip_',
+            'afterInsert' => '_test_skip_',
+            'beforeUpdate' => '_test_skip_',
+            'intranUpdate' => '_test_skip_',
+            'afterUpdate' => '_test_skip_',
+            'beforeDelete' => '_test_skip_',
+            'intranDelete' => '_test_skip_',
+            'afterDelete' => '_test_skip_',
+            'beforeModify' => '_test_skip_',
+            'afterModify' => '_test_skip_',
+            'addModifiedField' => '_test_skip_',
+            'clearModifiedFeilds' => '_test_skip_',
+            'eventSetActive' => '_test_skip_',
+            'eventUnsetActive' => '_test_skip_',
+        ];
+    }
 }
