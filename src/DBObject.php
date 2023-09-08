@@ -35,14 +35,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     
      */
 
-    protected $__table_name;
+    const INIT = 'init';
+    
     protected $__commit;
-
-
-    protected $__fields_list;
-    protected $__values_list;
-    protected $__field_value_pairs;
-
 
     protected $__data = [];
     protected $__is_new = true;
@@ -58,9 +53,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
 
 
     public function __construct($where = null, $params = [], $create=false) {
-        $this->__table_name = static::TABLE_NAME;
 
-        $this->initDataStructure();
+        static::initDataStructure();
+        $this->initData();
         
         if ($where !== null) {
             if (!$this->fetch($where, $params) && !$create) {
@@ -68,7 +63,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             }
         }
     }
-   
+    
     public function fetch($where=null, $params = []) {
         if ($where === null) {
             $where = 1;
@@ -163,27 +158,25 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return $result;
     }
     
-    public function getFields() {
-        if (!isset(self::$__fields[get_class($this)])) {
-            $this->fetchDataStructure();
+    static public function getFields() {
+        if (!isset(static::$__fields[static::class])) {
+            static::fetchDataStructure();
         }
-        return self::$__fields[get_class($this)];
+        return static::$__fields[static::class];
     }
     
-    public function getAutoIncrement() {
-        if (!isset(self::$__fields[get_class($this)])) {
-            $this->fetchDataStructure();
+    static public function getAutoIncrement() {
+        if (!isset(static::$__fields[static::class])) {
+            static::fetchDataStructure();
         }
-        $class = get_class($this);
-        return isset(self::$__autoincrement[$class]) ? self::$__autoincrement[$class] : null;
+        return isset(self::$__autoincrement[static::class]) ? self::$__autoincrement[static::class] : null;
     }
 
-    public function getPrimaryKey() {
-        if (!isset(self::$__fields[get_class($this)])) {
-            $this->fetchDataStructure();
+    static public function getPrimaryKey() {
+        if (!isset(static::$__fields[static::class])) {
+            static::fetchDataStructure();
         }
-        $class = get_class($this);
-        return isset(self::$__pri[$class]) ? self::$__pri[$class] : null;
+        return isset(static::$__pri[static::class]) ? static::$__pri[static::class] : null;
     }
 
     public function getLabel($field_name) {
@@ -218,13 +211,15 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
     
-    protected function prepare($sql, $vars=[]) {
-        return DB::$pdo->prepare($this->replaceVars($sql, $vars));
+    static protected function prepare($sql, $vars=[]) {
+        if ($vars === static::INIT) {
+            return DB::$pdo->prepare(static::replaceVarsInit($sql));
+        } 
+        return DB::$pdo->prepare(static::replaceVars($sql, $vars));
     }
     
-    protected function createAlterTable() {
-
-        $class = get_class($this);
+    static protected function createAlterTable() {
+        $class = static::class;
         if (!defined("$class::TABLE_NAME")) {
             throw new \Exception("Constant $class::TABLE_NAME does not defined.", -10007);
         }
@@ -232,7 +227,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             throw new \Exception("Constant $class::SQL_CREATE_TABLE does not defined.", -10007);
         }
         
-        $sth_get_version = static::prepare(static::SQL_FETCH_TABLE_VERSION);
+        $sth_get_version = static::prepare(static::SQL_FETCH_TABLE_VERSION, static::INIT);
         $sth_get_version->setFetchMode(\PDO::FETCH_COLUMN, 0);
         $sth_get_version->execute();
         $version = $sth_get_version->fetch();
@@ -241,7 +236,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             if (DB::$pdo->inTransaction()) {
                 throw new \Exception("You can't create table in transaction.", -10013);
             }
-            $sth_create = static::prepare(static::SQL_CREATE_TABLE);
+            $sth_create = static::prepare(static::SQL_CREATE_TABLE, static::INIT);
             $sth_create->execute();
         }
         
@@ -254,7 +249,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
                 if (DB::$pdo->inTransaction()) {
                     throw new \Exception("You can't create table in transaction.", -10013);
                 }
-                $sth_upgrade = static::prepare(constant($const));
+                $sth_upgrade = static::prepare(constant($const), static::INIT);
                 $sth_upgrade->execute();
             } else {
                 self::$__data_struct_checked[$class] = true;
@@ -266,45 +261,34 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
 
     }
     
-    protected function initDataStructure($reinit=false) {
-        if (empty(self::$__data_struct_checked[get_class($this)])) {
-            $this->createAlterTable();
+    static public function initDataStructure($reinit=false) {
+        if (empty(static::$__data_struct_checked[static::class]) || $reinit) {
+            static::createAlterTable();
         }
-        if (!isset(self::$__fields[get_class($this)]) || $reinit) {
-            $this->fetchDataStructure();
+        if (!isset(static::$__fields[static::class]) || $reinit) {
+            static::fetchDataStructure();
         }
-        
-        $this->__fields_list = implode(', ', $this->getFields());
-        $this->__values_list = ':'. implode(', :', $this->getFields());
-        
-        $pairs = [];
-        foreach ($this->getFields() as $field) {
-            $pairs[] = "$field = :$field";
-        }
-        
-        $this->__field_value_pairs = implode(", ", $pairs);
-
-        $this->initData();
     }
     
-    protected function fetchDataStructure() {
-        $sth = $this->prepare(static::SQL_FETCH_COLUMNS);
+    static protected function fetchDataStructure() {
+        $sth = static::prepare(static::SQL_FETCH_COLUMNS, static::INIT);
         $sth->execute();
         
+        static::$__fields[static::class] = [];
         while ($row = $sth->fetch(\PDO::FETCH_OBJ)) {
-            self::$__fields[get_class($this)][] = $row->Field;
-            self::$__labels[get_class($this)][$row->Field] = empty($row->Comment) ? $row->Field : $row->Comment;
+            static::$__fields[static::class][] = $row->Field;
+            static::$__labels[static::class][$row->Field] = empty($row->Comment) ? $row->Field : $row->Comment;
             if ($row->Key == 'PRI') {
-                self::$__pri[get_class($this)] = $row->Field;
+                self::$__pri[static::class] = $row->Field;
             }
             if (strpos($row->Extra, 'auto_increment') !== false) {
-                self::$__autoincrement[get_class($this)] = $row->Field;
+                self::$__autoincrement[static::class] = $row->Field;
             }
         }
     }
 
     protected function initData() {
-        foreach (self::$__fields[get_class($this)] as $field) {
+        foreach (static::$__fields[static::class] as $field) {
             $this->__data[$field] = null;
         }
     }
@@ -315,16 +299,30 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
     
-    protected function replaceVars($string, $vars=[]) {
+    static protected function replaceVarsInit($string) {
+
+        $result1 = str_replace("%DATABASE%", DB::$database, $string);
+        $result2 = str_replace("%TABLE_NAME%", DB::$prefix. static::TABLE_NAME, $result1);
+
+        return $result2;
+    }
     
+    static protected function replaceVars($string, $vars=[]) {
+    
+        $pairs = [];
+        foreach (static::getFields() as $field) {
+            $pairs[] = "$field = :$field";
+        }
+        $field_value_pairs = implode(", ", $pairs);
+
         $default_vars = [
             'DATABASE' => DB::$database,
-            'TABLE_NAME' => DB::$prefix. $this->__table_name,
-            'FIELDS_LIST' => $this->__fields_list,
-            'VALUES_LIST' => $this->__values_list,
-            'FIELD_VALUE_PAIRS' => $this->__field_value_pairs
+            'TABLE_NAME' => DB::$prefix. static::TABLE_NAME,
+            'FIELDS_LIST' => implode(', ', static::getFields()),
+            'VALUES_LIST' => ':'. implode(', :', static::getFields()),
+            'FIELD_VALUE_PAIRS' => $field_value_pairs
         ];
-        
+
         $full_vars = array_replace($default_vars, $vars);
 
         $result = $string;
@@ -481,6 +479,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             'initData' => '_test_skip_',
             'checkSetField' => '_test_skip_',
             'replaceVars' => '_test_skip_',
+            'replaceVarsInit' => '_test_skip_',
             'beforeInsert' => '_test_skip_',
             'intranInsert' => '_test_skip_',
             'afterInsert' => '_test_skip_',

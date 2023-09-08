@@ -96,12 +96,20 @@ class DBTestObject extends DBObject {
             'prepare' => '_test_skip_',             // used in __constructor
             'initData' => '_test_skip_',            // used in __constructor
             
+            'replaceVarsInit' => [
+                ['testing %DATABASE% name replacing', 'testing test name replacing'],
+                ['testing %TABLE_NAME% replacing', 'testing t_test_objects replacing'],
+                ['testing both %DATABASE%.%TABLE_NAME%', 'testing both test.t_test_objects'],
+                ['testing %WRONG_VAR%', 'testing %WRONG_VAR%'],
+                ['testing none', 'testing none'],
+            ],
             'replaceVars' => [
                 ['testing %DATABASE% name replacing', 'testing test name replacing'],
                 ['testing %TABLE_NAME% replacing', 'testing t_test_objects replacing'],
                 ['testing both %DATABASE%.%TABLE_NAME%', 'testing both test.t_test_objects'],
                 ['testing %WRONG_VAR%', 'testing %WRONG_VAR%'],
                 ['testing none', 'testing none'],
+                ['testing additional %VAR%', ['VAR' => 'test'], 'testing additional test'],
             ],
             'getAutoIncrement' => [
                 ['id']
