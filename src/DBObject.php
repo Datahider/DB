@@ -19,12 +19,12 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
      * для автоматического создания и обновления структуры таблицы в которой хранятся
      * данные объектов. Например
      * 
-     сonst SQL_CREATE_TABLE = <<<END
+     const SQL_CREATE_TABLE = <<<END
             CREATE TABLE IF NOT EXISTS %TABLE_NAME% (
                 id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
                 data varchar(256) NOT NULL DEFAULT '',
                 PRIMARY KEY (id)
-            ) COMMENT = 'v1.0.0';  // <-- это исходная версия таблицы (хранится в комментарии)
+            ) COMMENT = 'v1.0.0'  // <-- это исходная версия таблицы (хранится в комментарии)
             END;
     
 
