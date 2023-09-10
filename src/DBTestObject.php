@@ -152,6 +152,9 @@ class DBTestObject extends DBObject {
             'asString' => [
                 [new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::PCRE, "/test_name_1/")]
             ],
+            'checkUnuseable' => '_test_skip_',
+            'delete' => '_test_skip_',
+            
             'beforeInsert' => '_test_skip_',
             'intranInsert' => '_test_skip_',
             'afterInsert' => '_test_skip_',

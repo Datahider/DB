@@ -44,6 +44,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected $__fields_modified = [];
     protected $__events_active = [];
     protected $__immutable = false;
+    protected $__unuseable = false;
 
     protected static $__fields = [];
     protected static $__labels = [];
@@ -65,6 +66,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     public function fetch($where=null, $params = []) {
+        
+        $this->checkUnuseable();
+        
         if ($where === null) {
             $where = 1;
         }
@@ -93,7 +97,10 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return true;
     }
     
-    public function write($comment='', $data='') {
+    public function write($comment='', $data=null) {
+
+        $this->checkUnuseable();
+        
         if ($this->isNew()) {
             $this->insert($comment, $data);
         } else {
@@ -138,15 +145,43 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $this->afterUpdate($comment, $data);
     }
     
+    public function delete($comment='', $data=null) {
+        $this->checkUnuseable();
+        $sth = $this->prepare(static::SQL_DELETE, [ 'WHERE' => $this->getPrimaryKey(). ' = ?']);
+        $this->beforeDelete($comment, $data);
+        if (DB::$pdo->inTransaction()) {
+            $this->__commit = false;
+        } else {
+            DB::$pdo->beginTransaction();
+            $this->__commit = true;
+        }
+        $sth->execute([$this->__data[$this->getPrimaryKey()]]);
+        $this->intranDelete($comment, $data);
+        if ($this->__commit) {
+            DB::$pdo->commit();
+        }
+        $this->__unuseable = true;
+        $this->afterDelete($comment, $data);
+    }
+    
     public function isNew() {
+        $this->checkUnuseable();
         return $this->__is_new;
     }
     
     public function isModified() {
+        $this->checkUnuseable();
         return count($this->__fields_modified) > 0;
+    }
+    
+    public function checkUnuseable() {
+        if ( $this->__unuseable ) {
+            throw new \Exception("The object is in unuseable state (deleted?)", -10013);
+        }
     }
 
     public function asString($fields=3) {
+        $this->checkUnuseable();
         $class = DB::classShortName($this);
         $result = "$class: ";
         
@@ -180,6 +215,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
 
     public function getLabel($field_name) {
+        $this->checkUnuseable();
         if (array_key_exists($field_name, self::$__labels[get_class($this)])) {
             return self::$__labels[get_class($this)][$field_name];
         } else {
@@ -188,6 +224,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     public function __set($name, $value) {
+        $this->checkUnuseable();
         if ($this->__immutable) {
             throw new \Exception('The object is in immutable state.', -10013);
         }
@@ -204,6 +241,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     public function __get($name) {
+        $this->checkUnuseable();
         if (array_key_exists($name, $this->__data)) {
             return $this->__data[$name];
         } else {
@@ -383,7 +421,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected function intranDelete($comment, $data) {
         $this->eventSetActive(DBEvent::INTRAN_DELETE);
         DB::notify(new DBEvent(DBEvent::INTRAN_DELETE, $this, array_keys($this->__fields_modified), $data, $comment));
-        $this->eventUnsetActive($event_type);
+        $this->eventUnsetActive(DBEvent::INTRAN_DELETE);
     }
     protected function afterDelete($comment, $data) {
         $this->eventSetActive(DBEvent::AFTER_DELETE);
@@ -448,6 +486,11 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             WHERE %WHERE%
             END;
 
+    const SQL_DELETE = <<<END
+            DELETE FROM %TABLE_NAME%
+            WHERE %WHERE%
+            END;
+
     const SQL_FETCH_COLUMNS = <<<END
             SHOW FULL FIELDS FROM %TABLE_NAME%;
             END;
@@ -495,6 +538,8 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             'clearModifiedFeilds' => '_test_skip_',
             'eventSetActive' => '_test_skip_',
             'eventUnsetActive' => '_test_skip_',
+            'checkUnuseable' => '_test_skip_',
+            'delete' => '_test_skip_',
         ];
     }
 }
