@@ -114,17 +114,25 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         if (DB::$pdo->inTransaction()) {
             $this->__commit = false;
         } else {
-            DB::$pdo->beginTransaction();
             $this->__commit = true;
+            DB::$pdo->beginTransaction();
         }
-        $sth->execute($this->__data);
-        if ($this->getAutoIncrement()) {
-            $this->__data[$this->getAutoIncrement()] = DB::$pdo->lastInsertId();
-        }
-        $this->__is_new = false;
-        $this->intranInsert($comment, $data);
-        if ($this->__commit) {
-            DB::$pdo->commit();
+        try {
+            $sth->execute($this->__data);
+            if ($this->getAutoIncrement()) {
+                $this->__data[$this->getAutoIncrement()] = DB::$pdo->lastInsertId();
+            }
+            $this->__is_new = false;
+                $this->intranInsert($comment, $data);
+            if ($this->__commit) {
+                DB::$pdo->commit();
+            }
+        } catch (\Exception $e) {
+            if ($this->__commit) {
+                DB::$pdo->rollBack();
+                $this->__is_new = true;
+            }
+            throw $e;
         }
         $this->afterInsert($comment, $data);
     }
@@ -134,13 +142,21 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         if (DB::$pdo->inTransaction()) {
             $this->__commit = false;
         } else {
-            DB::$pdo->beginTransaction();
             $this->__commit = true;
+            DB::$pdo->beginTransaction();
         }
-        $sth->execute($this->__data);
-        $this->intranUpdate($comment, $data);
-        if ($this->__commit) {
-            DB::$pdo->commit();
+        try {
+            $sth->execute($this->__data);
+            $this->intranUpdate($comment, $data);
+            if ($this->__commit) {
+                DB::$pdo->commit();
+            }
+        } catch (\Exception $e) {
+            if ($this->__commit) {
+                DB::$pdo->rollBack();
+                $this->__is_new = true;
+            }
+            throw $e;
         }
         $this->afterUpdate($comment, $data);
     }
