@@ -88,6 +88,17 @@ class DBTestObject extends DBObject {
         }
     }
     
+    protected function _test_asArray() {
+        echo '.'; $array = $this->asArray();
+        echo '.'; if ($array['id'] != $this->id) {
+            throw new \Exception("Incorrect value", -10002);
+        }
+        echo '.'; $array['id'] = 'test_value';
+        echo '.'; if ($array['id'] == $this->id) {
+            throw new \Exception("Incorrect value", -10002);
+        }
+    }
+    
     protected function _test_data() {
         return [
             'initDataStructure' => '_test_skip_',   // used in __constructor
@@ -152,6 +163,7 @@ class DBTestObject extends DBObject {
             'asString' => [
                 [new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::PCRE, "/test_name_1/")]
             ],
+            'asArray' => '_test_asArray',
             'checkUnuseable' => '_test_skip_',
             'delete' => '_test_skip_',
             

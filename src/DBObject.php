@@ -209,6 +209,10 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return $result;
     }
     
+    public function asArray() {
+        return $this->__data;
+    }
+
     static public function getFields() {
         if (!isset(static::$__fields[static::class])) {
             static::fetchDataStructure();
@@ -525,6 +529,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             'isNew' => '_test_skip_',
             'isModified' => '_test_skip_',
             'asString' => '_test_skip_',
+            'asArray' => '_test_skip_',
             'getFields' => '_test_skip_',
             'getAutoIncrement' => '_test_skip_',
             'getPrimaryKey' => '_test_skip_',
