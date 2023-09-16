@@ -112,10 +112,9 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
 
     public static function connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4') {
         
-        DB::$pdo = new \PDO("mysql:dbname=$db_name;host=$db_host", 
+        DB::$pdo = new \PDO("mysql:dbname=$db_name;host=$db_host;charset=utf8mb4", 
                 $db_user, 
-                $db_pass, 
-                array(\PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES '$db_encoding'")
+                $db_pass
         );
         
         DB::$prefix = $db_prefix;

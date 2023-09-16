@@ -14,8 +14,8 @@
         }
     ],
     "require": {
-        "php": ">=7.4.0",
-        "losthost/self-testing-suite": "1.0.4"
+        "php": ">=8.2.10",
+        "losthost/self-testing-suite": ">=1.1.0"
     },
     "autoload": {
         "psr-4": {

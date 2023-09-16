@@ -4,24 +4,24 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "92e3da42b381b3326791db53c7f6753d",
+    "content-hash": "5d1ad43b8de0d10e6969a1f90e88ced6",
     "packages": [
         {
             "name": "losthost/self-testing-suite",
-            "version": "1.0.4",
+            "version": "v1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Datahider/lhTestingSuite.git",
-                "reference": "664ea58491888d35ebb727630f7db7628d2db95b"
+                "reference": "65404736a00189811a11f901a22a9597edad7bb0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Datahider/lhTestingSuite/zipball/664ea58491888d35ebb727630f7db7628d2db95b",
-                "reference": "664ea58491888d35ebb727630f7db7628d2db95b",
+                "url": "https://api.github.com/repos/Datahider/lhTestingSuite/zipball/65404736a00189811a11f901a22a9597edad7bb0",
+                "reference": "65404736a00189811a11f901a22a9597edad7bb0",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.0.0"
+                "php": ">=8.2.10"
             },
             "type": "library",
             "autoload": {
@@ -39,9 +39,9 @@
             "description": "A parrent class for self-testing classes",
             "support": {
                 "issues": "https://github.com/Datahider/lhTestingSuite/issues",
-                "source": "https://github.com/Datahider/lhTestingSuite/tree/1.0.4"
+                "source": "https://github.com/Datahider/lhTestingSuite/tree/v1.1.0"
             },
-            "time": "2023-09-04T05:48:36+00:00"
+            "time": "2023-09-16T14:42:11+00:00"
         }
     ],
     "packages-dev": [],
@@ -51,8 +51,8 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=7.4.0"
+        "php": ">=8.2.10"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.3.0"
 }
