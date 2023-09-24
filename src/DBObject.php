@@ -50,6 +50,8 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected static $__labels = [];
     protected static $__pri = [];
     protected static $__autoincrement = [];
+    protected static $__datetime_fields = [];
+    protected static $__bool_fields = [];
     protected static $__data_struct_checked = [];
 
 
@@ -243,6 +245,14 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
     
+    protected function formatDateTime($value) {
+        if (is_a($value, '\DateTime') || is_a($value, '\DateTimeImmutable')) {
+            return $value->format(DB::DATE_FORMAT);
+        }
+        
+        throw new \Exception("The value must be of type DateTime or DateTimeImmutable.", -10003);
+    }
+    
     public function __set($name, $value) {
         $this->checkUnuseable();
         if ($this->__immutable) {
@@ -250,9 +260,18 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
         if (array_key_exists($name, $this->__data)) {
             $this->checkSetField($name);
-            if ($this->__data[$name] !== $value) {
+            
+            if ( false !== array_search($name, self::$__datetime_fields[static::class]) ) {
+                $new_value = $this->formatDateTime($value);
+            } elseif (false !== array_search($name, self::$__bool_fields[static::class])) {
+                $new_value = (int)((bool)$value);
+            } else {
+                $new_value = $value;
+            }
+            
+            if ($this->__data[$name] !== $new_value) {
                 $this->beforeModify($name, $value);
-                $this->__data[$name] = $value;
+                $this->__data[$name] = $new_value;
                 $this->afterModify($name, $value);
             }
         } else {
@@ -263,7 +282,13 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     public function __get($name) {
         $this->checkUnuseable();
         if (array_key_exists($name, $this->__data)) {
-            return $this->__data[$name];
+            if (false !== array_search($name, self::$__datetime_fields[static::class])) {
+                return new \DateTimeImmutable($this->__data[$name]);
+            } elseif (false !== array_search($name, self::$__bool_fields[static::class])) {
+                return (bool) $this->__data[$name];
+            } else {
+                return $this->__data[$name];
+            }
         } else {
             throw new \Exception("Field $name does not exist in the local data set.", -10003);
         }
@@ -341,6 +366,12 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             }
             if (strpos($row->Extra, 'auto_increment') !== false) {
                 self::$__autoincrement[static::class] = $row->Field;
+            }
+            if ($row->Type == 'datetime') {
+                self::$__datetime_fields[static::class][] = $row->Field;
+            } 
+            if ($row->Type == 'tinyint(1)') {
+                self::$__bool_fields[static::class][] = $row->Field;
             }
         }
     }

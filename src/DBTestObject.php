@@ -27,15 +27,25 @@ class DBTestObject extends DBObject {
                 id bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Идентификатор',
                 name varchar(50) COMMENT 'Имя',
                 PRIMARY KEY (id)
-            ) COMMENT = 'v1.0.0'    /* Don't forget to specify version as table comment */
+            ) COMMENT = 'v1.0.0'
             END;
     
     /*
      * If you will need to upgrade data structure then define UPGRADE_FROM_* constant 
      */
     const SQL_UPGRADE_FROM_1_0_0 = <<<END
-            ALTER TABLE %TABLE_NAME% COMMENT = 'v1.0.7',  /* Don't forget to specify new version of table structure */
+            ALTER TABLE %TABLE_NAME% COMMENT = 'v1.0.7',
             ADD description varchar(1024) COMMENT 'Описание'
+            END;
+    
+    const SQL_UPGRADE_FROM_1_0_7 = <<<END
+            ALTER TABLE %TABLE_NAME% COMMENT = 'v1.0.8',
+            ADD some_date DATETIME COMMENT 'Какая-то дата'
+            END;
+    
+    const SQL_UPGRADE_FROM_1_0_8 = <<<END
+            ALTER TABLE %TABLE_NAME% COMMENT = 'v1.0.9',
+            ADD bool_field BOOL COMMENT 'Булево поле'
             END;
     
     protected function _test_modifyAndStore() {
@@ -83,6 +93,26 @@ class DBTestObject extends DBObject {
             case 7:
                 $this->id = 10; // Awaiting exception as it is autoincrement field
                 return true;
+            case 8:
+                $this->some_date = '2023-10-18 21:18:10'; // Awaiting exception as the value is not a datetime object
+                return true; 
+            case 9:
+                $this->some_date = new \DateTimeImmutable();
+                $this->write();
+                return true; 
+            case 10:
+                if (!is_string($this->__data['some_date'])) {
+                    throw new Exception("Type exception. Awaiting internal some_date to be a string", -10002);
+                }
+                return $this->some_date;
+            case 11:
+                $this->bool_field = true;
+                $this->write();
+                return [$this->bool_field === true ? 'TRUE' : 'NOT TRUE', $this->__data['bool_field']];
+            case 12:
+                $this->bool_field = false;
+                $this->write();
+                return [$this->bool_field === false ? 'FALSE' : 'NOT FALSE', $this->__data['bool_field']];
             default:
                 throw new \Exception("Unknown test step", -10003);
         }
@@ -126,7 +156,7 @@ class DBTestObject extends DBObject {
                 ['id']
             ],
             'getFields' => [
-                [['id', 'name', 'description']]
+                [['id', 'name', 'description', 'some_date', 'bool_field']]
             ],
             'getPrimaryKey' => [
                 ['id']
@@ -149,6 +179,11 @@ class DBTestObject extends DBObject {
                 [5, true],
                 [6, false],
                 [7, new \Exception('', -10003)],
+                [8, new \Exception('', -10003)],
+                [9, 1],
+                [10, new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::IS_A, '\DateTimeImmutable')],
+                [11, ['TRUE', 1]],
+                [12, ['FALSE', 0]],
             ],
             'fetch' => '_test_skip_',           // Tested in _test_modifyAndFetch
             '__get' => '_test_skip_',           // Tested in _test_modifyAndFetch
@@ -167,6 +202,7 @@ class DBTestObject extends DBObject {
             'checkUnuseable' => '_test_skip_',
             'delete' => '_test_skip_',
             
+            'formatDateTime' => '_test_skip_',
             'beforeInsert' => '_test_skip_',
             'intranInsert' => '_test_skip_',
             'afterInsert' => '_test_skip_',
