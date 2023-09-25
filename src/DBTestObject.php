@@ -45,11 +45,13 @@ class DBTestObject extends DBObject {
     
     const SQL_UPGRADE_FROM_1_0_8 = <<<END
             ALTER TABLE %TABLE_NAME% COMMENT = 'v1.0.9',
-            ADD bool_field BOOL COMMENT 'Булево поле'
+            ADD bool_field BOOL NOT NULL COMMENT 'Булево поле',
+            ADD another_bool BOOL COMMENT 'Другое булево'
             END;
     
     protected function _test_modifyAndStore() {
         $this->name = 'test_name';
+        $this->bool_field = false;
         echo '.';
         if ($this->__data['name'] != 'test_name') {
             throw new \Exception('__set seems not to be working.', -10002);
@@ -111,8 +113,18 @@ class DBTestObject extends DBObject {
                 return [$this->bool_field === true ? 'TRUE' : 'NOT TRUE', $this->__data['bool_field']];
             case 12:
                 $this->bool_field = false;
+                $this->another_bool = false;
                 $this->write();
                 return [$this->bool_field === false ? 'FALSE' : 'NOT FALSE', $this->__data['bool_field']];
+            case 13:
+                $this->another_bool = null;
+                $this->write();
+                return 'Ok';
+            case 14:
+                if ($this->another_bool !== null) {
+                    throw new \Exception("Awaiting to be NULL");
+                }
+                return 'Ok';
             default:
                 throw new \Exception("Unknown test step", -10003);
         }
@@ -156,7 +168,7 @@ class DBTestObject extends DBObject {
                 ['id']
             ],
             'getFields' => [
-                [['id', 'name', 'description', 'some_date', 'bool_field']]
+                [['id', 'name', 'description', 'some_date', 'bool_field', 'another_bool']]
             ],
             'getPrimaryKey' => [
                 ['id']
@@ -184,6 +196,8 @@ class DBTestObject extends DBObject {
                 [10, new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::IS_A, '\DateTimeImmutable')],
                 [11, ['TRUE', 1]],
                 [12, ['FALSE', 0]],
+                [13, 'Ok'],
+                [14, 'Ok'],
             ],
             'fetch' => '_test_skip_',           // Tested in _test_modifyAndFetch
             '__get' => '_test_skip_',           // Tested in _test_modifyAndFetch

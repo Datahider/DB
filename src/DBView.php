@@ -16,6 +16,7 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     protected $__sql;
     protected $__params;
+    protected $__field_types;
     protected $__data;
     protected $__pointer;
 
@@ -40,9 +41,30 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
         $sth = $this->prepare($this->__sql, $vars);
         $sth->execute($this->__params);
         
+        
+        $this->fillTypes($sth);
         $this->__data = $sth->fetchAll(\PDO::FETCH_ASSOC);
         $this->__pointer = -1;
         return $this->__data;
+    }
+    
+    protected function fillTypes(\PDOStatement &$sth) {
+        $this->__field_types = [];
+        for ($index = 0; true; $index++) {
+            $meta = $sth->getColumnMeta($index);
+            if ($meta === false) {
+                break;
+            }
+            
+            if ( true
+                    && $meta['native_type'] == 'TINY'
+                    && $meta['len'] == 1
+                    && (count($meta['flags']) == 0 || count($meta['flags']) == 1 && $meta['flags'][0] == 'not_null')) {
+                $this->__field_types[$meta['name']] = 'BOOL';
+            } else {
+                $this->__field_types[$meta['name']] = $meta['native_type'];
+            }
+        }
     }
     
     public function __get($name) {
@@ -52,7 +74,15 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
         if (!array_key_exists($name, $this->__data[$this->__pointer])) {
             throw new \Exception('Field does not exist', -10003);
         }
-        return $this->__data[$this->__pointer][$name];
+        if ($this->__data[$this->__pointer][$name] === null) {
+            return null;
+        } elseif ($this->__field_types[$name] == 'BOOL') {
+            return (bool) $this->__data[$this->__pointer][$name];
+        } elseif ($this->__field_types[$name] == 'DATETIME') {
+            return new \DateTimeImmutable($this->__data[$this->__pointer][$name]);
+        } else {
+            return $this->__data[$this->__pointer][$name];
+        }
     }
     
     public function next() {
@@ -108,7 +138,7 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
         $test2 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::ELEM_IS_ARRAY, 0);
         $test3 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::EQ, 1);
         $test4 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::EQ, 0);
-        $test5 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::EQ, 2);
+        $test5 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::EQ, 3);
         $test6 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::EQ, true);
         $test7 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::EQ, false);
         echo '.'; $test1->test($this->fetch("SELECT id FROM [test_objects] WHERE 1", []));
@@ -116,6 +146,7 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
         echo '.'; $test3->test(count($this->fetch("SELECT id FROM [test_objects] WHERE id=?", [2])));
         echo '.'; $test4->test(count($this->fetch("SELECT id FROM [test_objects] WHERE name=?", 'object')));
         echo '.'; $test5->test(count($this->fetch("SELECT id FROM [test_objects] WHERE description LIKE ?", '%est%')));
+        echo '.'; $test6->test($this->next());
         echo '.'; $test6->test($this->next());
         echo '.'; $test6->test($this->next());
         echo '.'; $test7->test($this->next());
@@ -143,7 +174,8 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
             '__get' => [
                 ['id', 3],
                 ['name', new \Exception('', -10003)],
-            ]
+            ],
+            'fillTypes' => '_test_skip_',
         ];
     }
 }

@@ -261,7 +261,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         if (array_key_exists($name, $this->__data)) {
             $this->checkSetField($name);
             
-            if ( false !== array_search($name, self::$__datetime_fields[static::class]) ) {
+            if ($value === null) {
+                $new_value = null;
+            } elseif ( false !== array_search($name, self::$__datetime_fields[static::class]) ) {
                 $new_value = $this->formatDateTime($value);
             } elseif (false !== array_search($name, self::$__bool_fields[static::class])) {
                 $new_value = (int)((bool)$value);
@@ -282,7 +284,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     public function __get($name) {
         $this->checkUnuseable();
         if (array_key_exists($name, $this->__data)) {
-            if (false !== array_search($name, self::$__datetime_fields[static::class])) {
+            if ($this->__data[$name] === null) {
+                return null;
+            } elseif (false !== array_search($name, self::$__datetime_fields[static::class])) {
                 return new \DateTimeImmutable($this->__data[$name]);
             } elseif (false !== array_search($name, self::$__bool_fields[static::class])) {
                 return (bool) $this->__data[$name];
