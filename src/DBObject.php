@@ -361,7 +361,10 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $sth = static::prepare(static::SQL_FETCH_COLUMNS, static::INIT);
         $sth->execute();
         
-        static::$__fields[static::class] = [];
+        self::$__fields[static::class] = [];
+        self::$__datetime_fields[static::class] = [];
+        self::$__bool_fields[static::class] = [];
+        
         while ($row = $sth->fetch(\PDO::FETCH_OBJ)) {
             static::$__fields[static::class][] = $row->Field;
             static::$__labels[static::class][$row->Field] = empty($row->Comment) ? $row->Field : $row->Comment;
