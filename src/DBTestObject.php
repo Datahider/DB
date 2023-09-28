@@ -139,6 +139,12 @@ class DBTestObject extends DBObject {
         echo '.'; if ($array['id'] == $this->id) {
             throw new \Exception("Incorrect value", -10002);
         }
+        echo '.'; if (is_bool($array['bool_field']) != true) {
+            throw new \Exception("Incorrect value type", -10002);
+        }
+        echo '.'; if (is_a($array['some_date'], '\DateTimeImmutable') != true) {
+            throw new \Exception("Incorrect value type", -10002);
+        }
     }
     
     protected function _test_data() {
@@ -210,9 +216,25 @@ class DBTestObject extends DBObject {
                 ['unexistant', new \Exception('', -10003)],
             ],
             'asString' => [
-                [new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::PCRE, "/test_name_1/")]
+                [new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::PCRE, "/test_name_1/")],
+                ['%id%, %name%', '1, test_name_1'],
+                ['%CLASS%:template0', 'losthost\DB\DBTestObject:template0'],
             ],
             'asArray' => '_test_asArray',
+            'asFormattedArray' => [
+                [ new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::ELEM, 'bool_field', 'FALSE')],
+            ],
+            'fieldType' => [
+                ['some_date', 'datetime'],
+                ['bool_field', 'bool'],
+                ['id', 'general']
+            ],
+            'defaultFormats' => [
+                [['datetime' => 'Y-m-d H:i:s', 'bool' => ['FALSE', 'TRUE']]],
+            ],
+            'toDateTime' => [
+                ['2023-10-01 23:00:10', new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::IS_A, 'DateTimeImmutable')],
+            ],
             'checkUnuseable' => '_test_skip_',
             'delete' => '_test_skip_',
             

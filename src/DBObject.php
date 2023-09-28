@@ -50,8 +50,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected static $__labels = [];
     protected static $__pri = [];
     protected static $__autoincrement = [];
-    protected static $__datetime_fields = [];
-    protected static $__bool_fields = [];
+    protected static $__field_types = [];
     protected static $__data_struct_checked = [];
 
 
@@ -198,23 +197,62 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
 
-    public function asString($fields=3) {
+    public function asString($template='%CLASS%: %FIELDS%', null|array $formats=null, null|array $vars=null) {
         $this->checkUnuseable();
-        $class = DB::classShortName($this);
-        $result = "$class: ";
         
-        foreach ($this->__data as $key => $value) {
-            $result .= "\n\t$key = $value";
-            $fields--;
-            if (!$fields) { break; }
+        
+        $text = $this->replaceVars($template, [
+            'CLASS' => static::class,
+            'FIELDS' => implode(', ', $this->asFormattedArray($formats)),
+        ]);
+        
+        $text = $this->replaceVars($text, $this->asFormattedArray($formats));
+        
+        if ($vars !== null) {
+            $text = $this->replaceVars($text, $vars);
+        }
+        
+        return $text;
+    }
+    
+    protected function fieldType($field_name) {
+        return self::$__field_types[static::class][$field_name];
+    }
+    
+    public function asArray() {
+
+        foreach ( self::$__fields[static::class] as $field_name ) {
+            $result[$field_name] = $this->$field_name;
         }
         return $result;
     }
     
-    public function asArray() {
-        return $this->__data;
+    public function asFormattedArray($formats = null) {
+
+        if ($formats === null) {
+            $formats = $this->defaultFormats();
+        }
+        
+        foreach ($this->asArray() as $key => $value) {
+            if ( $this->fieldType($key) == 'datetime' ) {
+                $result[$key] = $value->format($formats['datetime']);
+            } elseif ($this->fieldType($key) == 'bool' ) {
+                $result[$key] = $formats['bool'][(int)$value];
+            } else {
+                $result[$key] = $value;
+            }
+        }
+        
+        return $result;
     }
 
+    protected function defaultFormats() {
+        return [
+            'datetime' => DB::getFormat('datetime'),
+            'bool' => DB::getFormat('bool')
+        ];
+    }
+    
     static public function getFields() {
         if (!isset(static::$__fields[static::class])) {
             static::fetchDataStructure();
@@ -263,9 +301,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             
             if ($value === null) {
                 $new_value = null;
-            } elseif ( false !== array_search($name, self::$__datetime_fields[static::class]) ) {
+            } elseif ( self::$__field_types[static::class][$name] == 'datetime' ) {
                 $new_value = $this->formatDateTime($value);
-            } elseif (false !== array_search($name, self::$__bool_fields[static::class])) {
+            } elseif ( self::$__field_types[static::class][$name] == 'bool' ) {
                 $new_value = (int)((bool)$value);
             } else {
                 $new_value = $value;
@@ -286,9 +324,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         if (array_key_exists($name, $this->__data)) {
             if ($this->__data[$name] === null) {
                 return null;
-            } elseif (false !== array_search($name, self::$__datetime_fields[static::class])) {
-                return new \DateTimeImmutable($this->__data[$name]);
-            } elseif (false !== array_search($name, self::$__bool_fields[static::class])) {
+            } elseif ( self::$__field_types[static::class][$name] == 'datetime' ) {
+                return $this->toDateTime($this->__data[$name]);
+            } elseif ( self::$__field_types[static::class][$name] == 'bool' ) {
                 return (bool) $this->__data[$name];
             } else {
                 return $this->__data[$name];
@@ -296,6 +334,10 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         } else {
             throw new \Exception("Field $name does not exist in the local data set.", -10003);
         }
+    }
+    
+    protected function toDateTime($value) {
+        return new \DateTimeImmutable($value);
     }
     
     static protected function prepare($sql, $vars=[]) {
@@ -362,8 +404,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $sth->execute();
         
         self::$__fields[static::class] = [];
-        self::$__datetime_fields[static::class] = [];
-        self::$__bool_fields[static::class] = [];
+        self::$__field_types[static::class] = [];
         
         while ($row = $sth->fetch(\PDO::FETCH_OBJ)) {
             static::$__fields[static::class][] = $row->Field;
@@ -375,10 +416,11 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
                 self::$__autoincrement[static::class] = $row->Field;
             }
             if ($row->Type == 'datetime') {
-                self::$__datetime_fields[static::class][] = $row->Field;
-            } 
-            if ($row->Type == 'tinyint(1)') {
-                self::$__bool_fields[static::class][] = $row->Field;
+                self::$__field_types[static::class][$row->Field] = 'datetime';
+            } elseif ($row->Type == 'tinyint(1)') {
+                self::$__field_types[static::class][$row->Field] = 'bool';
+            } else {
+                self::$__field_types[static::class][$row->Field] = 'general';
             }
         }
     }
@@ -568,6 +610,10 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             'isModified' => '_test_skip_',
             'asString' => '_test_skip_',
             'asArray' => '_test_skip_',
+            'asFormattedArray' => '_test_skip_',
+            'defaultFormats' => '_test_skip_',
+            'toDateTime' => '_test_skip_',
+            'fieldType' => '_test_skip_',
             'getFields' => '_test_skip_',
             'getAutoIncrement' => '_test_skip_',
             'getPrimaryKey' => '_test_skip_',

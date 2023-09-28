@@ -19,6 +19,8 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     public static $pdo;
     public static $prefix;
     public static $database;
+    public static $language_code;
+    
     protected static $namespace = '';
     protected static $trackers = [
         DBEvent::ALL_EVENTS => [],
@@ -35,6 +37,25 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         DBEvent::AFTER_DELETE => [],
     ];
 
+    public static function getFormat($type) {
+        $lang = strtoupper(self::$language_code);
+        $type = strtoupper($type);
+        
+        $lang_constant_name = "FORMAT_{$lang}_{$type}";
+        $common_constant_name = "FORMAT_$type";
+        
+        if (defined($lang_constant_name)) {
+            return constant($lang_constant_name);
+        } elseif (defined($common_constant_name)) {
+            return constant($common_constant_name);
+        } elseif ($type == 'DATETIME') {
+            return self::DATE_FORMAT;
+        } elseif ($type == 'BOOL') {
+            return [ 'FALSE', 'TRUE' ];
+        }
+        return null;
+    }
+    
     public static function addTracker(int|array $event_types, string|array $classes, string|DBTracker $tracker) {
         if (is_int($event_types)) {
             $event_types = [$event_types];
@@ -301,6 +322,10 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
                     DBEvent::AFTER_UPDATE => [],
                     DBEvent::AFTER_DELETE => [],
                 ]]
+            ],
+            'getFormat' => [
+                ['bool', ['FALSE', 'TRUE']],
+                ['datetime', 'Y-m-d H:i:s'],
             ],
         ];
     }
