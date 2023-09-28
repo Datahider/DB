@@ -16,10 +16,10 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     const DATE_FORMAT = 'Y-m-d H:i:s';
     
-    public static $pdo;
-    public static $prefix;
-    public static $database;
-    public static $language_code;
+    public static \PDO $pdo;
+    public static string $prefix;
+    public static string $database;
+    public static string $language_code;
     
     protected static $namespace = '';
     protected static $trackers = [
