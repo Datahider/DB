@@ -38,7 +38,7 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     ];
 
     public static function getFormat($type) {
-        $lang = strtoupper(self::$language_code);
+        $lang = isset(self::$language_code) ? strtoupper(self::$language_code) : 'RU';
         $type = strtoupper($type);
         
         $lang_constant_name = "FORMAT_{$lang}_{$type}";
