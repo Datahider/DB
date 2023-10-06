@@ -217,7 +217,7 @@ class DBTestObject extends DBObject {
             ],
             'asString' => [
                 [new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::PCRE, "/test_name_1/")],
-                ['%id%, %name%', '1, test_name_1'],
+                ['%id%, %name%', '2, test_name_1'],
                 ['%CLASS%:template0', 'losthost\DB\DBTestObject:template0'],
             ],
             'asArray' => '_test_asArray',

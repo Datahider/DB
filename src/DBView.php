@@ -143,7 +143,7 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
         $test7 = new \losthost\SelfTestingSuite\Test(\losthost\SelfTestingSuite\Test::EQ, false);
         echo '.'; $test1->test($this->fetch("SELECT id FROM [test_objects] WHERE 1", []));
         echo '.'; $test2->test($this->fetch("SELECT id FROM [test_objects] WHERE 1", []));
-        echo '.'; $test3->test(count($this->fetch("SELECT id FROM [test_objects] WHERE id=?", [2])));
+        echo '.'; $test3->test(count($this->fetch("SELECT id FROM [test_objects] WHERE id=?", [3])));
         echo '.'; $test4->test(count($this->fetch("SELECT id FROM [test_objects] WHERE name=?", 'object')));
         echo '.'; $test5->test(count($this->fetch("SELECT id FROM [test_objects] WHERE description LIKE ?", '%est%')));
         echo '.'; $test6->test($this->next());
@@ -172,7 +172,7 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
                 [true],
             ],
             '__get' => [
-                ['id', 3],
+                ['id', 4],
                 ['name', new \Exception('', -10003)],
             ],
             'fillTypes' => '_test_skip_',

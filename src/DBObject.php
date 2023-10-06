@@ -45,6 +45,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected $__events_active = [];
     protected $__immutable = false;
     protected $__unuseable = false;
+    
+    protected $__where;
+    protected $__params;
 
     protected static $__fields = [];
     protected static $__labels = [];
@@ -60,18 +63,28 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $this->initData();
         
         if ($where !== null) {
-            if (!$this->fetch($where, $params) && !$create) {
+            $this->__where = $where;
+            $this->__params = $params;
+            if (!$this->fetch() && !$create) {
                 throw new \Exception('Not found', -10002);
             }
         }
     }
     
-    public function fetch($where=null, $params = []) {
+    public function fetch($where=null, $params = null) {
         
         $this->checkUnuseable();
         
         if ($where === null) {
-            $where = 1;
+            $where = $this->__where;
+        } else {
+            $this->__where = $where;
+        }
+        
+        if ($params === null) {
+            $params = $this->__params;
+        } else {
+            $this->__params = $params;
         }
         
         if (is_scalar($params)) {
@@ -106,6 +119,11 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             $this->insert($comment, $data);
         } else {
             $this->update($comment, $data);
+        }
+        
+        if (!isset($this->__where)) {
+            $this->__where = $this->getPrimaryKey(). ' = ?';
+            $this->__params = $this->__data[$this->getPrimaryKey()];
         }
     }
     
