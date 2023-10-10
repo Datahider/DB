@@ -130,25 +130,25 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected function insert($comment, $data) {
         $sth = $this->prepare(static::SQL_INSERT);
         $this->beforeInsert($comment, $data);
-        if (DB::$pdo->inTransaction()) {
+        if (DB::inTransaction()) {
             $this->__commit = false;
         } else {
             $this->__commit = true;
-            DB::$pdo->beginTransaction();
+            DB::beginTransaction();
         }
         try {
             $sth->execute($this->__data);
             if ($this->getAutoIncrement()) {
-                $this->__data[$this->getAutoIncrement()] = DB::$pdo->lastInsertId();
+                $this->__data[$this->getAutoIncrement()] = DB::PDO()->lastInsertId();
             }
             $this->__is_new = false;
                 $this->intranInsert($comment, $data);
             if ($this->__commit) {
-                DB::$pdo->commit();
+                DB::commit();
             }
         } catch (\Exception $e) {
             if ($this->__commit) {
-                DB::$pdo->rollBack();
+                DB::rollBack();
                 $this->__is_new = true;
             }
             throw $e;
@@ -158,21 +158,21 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected function update($comment, $data) {
         $sth = $this->prepare(static::SQL_UPDATE, [ 'WHERE' => $this->getPrimaryKey(). ' = :'. $this->getPrimaryKey()]);
         $this->beforeUpdate($comment, $data);
-        if (DB::$pdo->inTransaction()) {
+        if (DB::inTransaction()) {
             $this->__commit = false;
         } else {
             $this->__commit = true;
-            DB::$pdo->beginTransaction();
+            DB::beginTransaction();
         }
         try {
             $sth->execute($this->__data);
             $this->intranUpdate($comment, $data);
             if ($this->__commit) {
-                DB::$pdo->commit();
+                DB::commit();
             }
         } catch (\Exception $e) {
             if ($this->__commit) {
-                DB::$pdo->rollBack();
+                DB::rollBack();
                 $this->__is_new = true;
             }
             throw $e;
@@ -184,16 +184,16 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $this->checkUnuseable();
         $sth = $this->prepare(static::SQL_DELETE, [ 'WHERE' => $this->getPrimaryKey(). ' = ?']);
         $this->beforeDelete($comment, $data);
-        if (DB::$pdo->inTransaction()) {
+        if (DB::inTransaction()) {
             $this->__commit = false;
         } else {
-            DB::$pdo->beginTransaction();
+            DB::beginTransaction();
             $this->__commit = true;
         }
         $sth->execute([$this->__data[$this->getPrimaryKey()]]);
         $this->intranDelete($comment, $data);
         if ($this->__commit) {
-            DB::$pdo->commit();
+            DB::commit();
         }
         $this->__unuseable = true;
         $this->afterDelete($comment, $data);
@@ -360,9 +360,9 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     static protected function prepare($sql, $vars=[]) {
         if ($vars === static::INIT) {
-            return DB::$pdo->prepare(static::replaceVarsInit($sql));
+            return DB::PDO()->prepare(static::replaceVarsInit($sql));
         } 
-        return DB::$pdo->prepare(static::replaceVars($sql, $vars));
+        return DB::PDO()->prepare(static::replaceVars($sql, $vars));
     }
     
     static protected function createAlterTable() {
@@ -380,7 +380,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $version = $sth_get_version->fetch();
 
         if ($version === false) { // таблица не найдена, создаём
-            if (DB::$pdo->inTransaction()) {
+            if (DB::inTransaction()) {
                 throw new \Exception("You can't create table in transaction.", -10013);
             }
             $sth_create = static::prepare(static::SQL_CREATE_TABLE, static::INIT);
@@ -393,7 +393,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             
             $const = str_replace(['v', '.'], '_', "$class::SQL_UPGRADE_FROM$version");
             if (defined($const)) {
-                if (DB::$pdo->inTransaction()) {
+                if (DB::inTransaction()) {
                     throw new \Exception("You can't create table in transaction.", -10013);
                 }
                 $sth_upgrade = static::prepare(constant($const), static::INIT);

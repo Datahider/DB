@@ -99,7 +99,7 @@ class DBView extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
 
     protected function prepare($sql, $vars=[]) {
-        return DB::$pdo->prepare($this->replaceVars($sql, $vars));
+        return DB::PDO()->prepare($this->replaceVars($sql, $vars));
     }
     
     protected function replaceVars($string, $vars=[]) {

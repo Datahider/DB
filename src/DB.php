@@ -16,11 +16,20 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     const DATE_FORMAT = 'Y-m-d H:i:s';
     
-    public static \PDO $pdo;
     public static string $prefix;
     public static string $database;
     public static string $language_code;
     
+    protected static \PDO $pdo;
+
+    protected static string $host;
+    protected static string $user;
+    protected static string $pass;
+    protected static string $encoding;
+    
+    protected static bool $in_transaction;
+
+
     protected static $namespace = '';
     protected static $trackers = [
         DBEvent::ALL_EVENTS => [],
@@ -37,6 +46,62 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         DBEvent::AFTER_DELETE => [],
     ];
 
+    public static function PDO() : \PDO {
+        
+        $count = 240;
+        $sleep = false;
+        while (1) {
+            try {
+                self::$pdo->getAttribute(\PDO::ATTR_SERVER_INFO);
+                return self::$pdo;
+            } catch (\Exception $ex) {
+                if (self::$in_transaction) {
+                    error_log('SQL server connection lost while in transaction.');
+                    throw $ex;
+                }
+                if ($count <= 0) {
+                    error_log('Retry limit reached while trying to reconnect to SQL server.');
+                    throw $ex;
+                }
+                self::reconnect();
+                if ($sleep) {
+                    sleep(5);
+                } else {
+                    $sleep = true;
+                }
+                $count--;
+            }
+        }
+    }
+    
+    public static function beginTransaction() {
+        if (self::$in_transaction) {
+            throw new \Exception('Already in transaction');
+        }
+        self::PDO()->beginTransaction();
+        self::$in_transaction = true;
+    }
+    
+    public static function commit() {
+        if (!self::$in_transaction) {
+            throw new \Exception('Not in transaction');
+        }
+        self::PDO()->commit();
+        self::$in_transaction = false;
+    }
+    
+    public static function rollBack() {
+        if (!self::$in_transaction) {
+            throw new \Exception('Not in transaction');
+        }
+        self::PDO()->rollBack();
+        self::$in_transaction = false;
+    }
+
+    public static function inTransaction() {
+        return self::$in_transaction;
+    }
+    
     public static function getFormat($type) {
         $lang = isset(self::$language_code) ? strtoupper(self::$language_code) : 'RU';
         $type = strtoupper($type);
@@ -138,9 +203,20 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
                 $db_pass
         );
         
+        DB::$host = $db_host;
+        DB::$user = $db_user;
+        DB::$pass = $db_pass;
+        DB::$encoding = $db_encoding;
+        
         DB::$prefix = $db_prefix;
         DB::$database = $db_name;
         
+        DB::$in_transaction = false;
+        
+    }
+    
+    protected static function reconnect() {
+        self::connect(DB::$host, DB::$user, DB::$pass, DB::$database, DB::$prefix, DB::$encoding);
     }
     
     public static function replaceVars($string, $table_name, $condition=1) {
@@ -190,7 +266,7 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         
         $sql = self::replaceVars($_sql, $table_name, $condition);
 
-        $sth = self::$pdo->prepare($sql);
+        $sth = self::PDO()->prepare($sql);
         return $sth;
         
     }
@@ -223,7 +299,7 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         if (!self::$pdo) {
             throw new \Exception("Please call DB::connect('localhost', 'test', 'correct_password', 'test', 't_') before start testing this class.");
         } else {
-            self::$pdo->query("SELECT 1");
+            self::PDO()->getAttribute(\PDO::ATTR_SERVER_INFO);
             echo '.';
             if (self::$database != 'test') {
                 throw new \Exception("The database name have to be `test`.");
@@ -327,6 +403,12 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
                 ['bool', ['FALSE', 'TRUE']],
                 ['datetime', 'Y-m-d H:i:s'],
             ],
+            'PDO' => '_test_skip_',
+            'beginTransaction' => '_test_skip_',
+            'commit' => '_test_skip_',
+            'rollBack' => '_test_skip_',
+            'inTransaction' => '_test_skip_',
+            'reconnect' => '_test_skip_',
         ];
     }
 }
