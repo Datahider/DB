@@ -5,7 +5,9 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Scripting/PHPClass.php to edit this template
  */
 
-namespace losthost\DB;
+namespace losthost\DB\test;
+use losthost\DB\DBTracker;
+use losthost\DB\DBEvent;
 
 /**
  * Description of DBChildTrackerExample

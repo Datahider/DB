@@ -12,31 +12,23 @@ namespace losthost\DB;
  *
  * @author drweb
  */
-abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
+abstract class DBObject {
     
     /* 
-     * В дочерних классах определите константы CREATE_TABLE И UPGRADE_FROM_N_N_N
+     * В дочерних классах определите константу METADATA
      * для автоматического создания и обновления структуры таблицы в которой хранятся
      * данные объектов. Например
-     * 
-     const SQL_CREATE_TABLE = <<<END
-            CREATE TABLE IF NOT EXISTS %TABLE_NAME% (
-                id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-                data varchar(256) NOT NULL DEFAULT '',
-                PRIMARY KEY (id)
-            ) COMMENT = 'v1.0.0'  // <-- это исходная версия таблицы (хранится в комментарии)
-            END;
+     *
     
+    const METADATA = [
+        'id'   => 'bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT COMMENT "Идентификатор"',
+        'data' => 'varchar(256) NOT NULL DEFAULT COMMENT "Данные"',
+        'PRIMARY KEY' => 'id',
+        'INDEX id_data' => ['id', 'data']
+    ];
 
-     const SQL_UPGRADE_FROM_1_0_0 = <<<END
-            ALTER TABLE %TABLE_NAME% COMMENT = 'v1.0.9',  // <-- не забудьте обновить версию таблицы
-            ADD COLUMN more_data TEXT;
-            END;
-    
      */
 
-    const INIT = 'init';
-    
     protected $__commit;
 
     protected $__data = [];
@@ -46,9 +38,6 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected $__immutable = false;
     protected $__unuseable = false;
     
-    protected $__where;
-    protected $__params;
-
     protected static $__fields = [];
     protected static $__labels = [];
     protected static $__pri = [];
@@ -57,43 +46,42 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     protected static $__data_struct_checked = [];
 
 
-    public function __construct($where = null, $params = [], $create=false) {
+    public function __construct($data=[], $create=false) {
 
         static::initDataStructure();
         $this->initData();
         
-        if ($where !== null) {
-            $this->__where = $where;
-            $this->__params = $params;
-            if (!$this->fetch() && !$create) {
+        if (count($data) > 0) {
+            if (!$this->fetch($data) && !$create) {
                 throw new \Exception('Not found', -10002);
+            } elseif ($create) {
+                foreach ($data as $key => $value) {
+                    $this->$key = $value;
+                }
             }
         }
     }
     
-    public function fetch($where=null, $params = null) {
+    protected function where(array $data) {
+        $result_array = [];
+        
+        foreach (array_keys($data) as $key) {
+            $result_array[] = "$key = :$key";
+        }
+        return implode(" AND ", $result_array);
+    }
+    
+    public function fetch(array $filter=[]) {
+        
+        if (count($filter) == 0) {
+            $primary_key = $this->getPrimaryKey();
+            $filter[$primary_key] = $this->$primary_key; 
+        }
         
         $this->checkUnuseable();
         
-        if ($where === null) {
-            $where = $this->__where;
-        } else {
-            $this->__where = $where;
-        }
-        
-        if ($params === null) {
-            $params = $this->__params;
-        } else {
-            $this->__params = $params;
-        }
-        
-        if (is_scalar($params)) {
-            $params = [$params];
-        }
-        
-        $sth = $this->prepare(static::SQL_SELECT, [ 'WHERE' => $where ]);
-        
-        $sth->execute($params);
+        $sth = DB::prepare('SELECT * FROM '. $this->tableName(). ' WHERE '. $this->where($filter));
+        $sth->execute($filter);
         
         $result = $sth->fetch(\PDO::FETCH_ASSOC);
         
@@ -121,14 +109,10 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             $this->update($comment, $data);
         }
         
-        if (!isset($this->__where)) {
-            $this->__where = $this->getPrimaryKey(). ' = ?';
-            $this->__params = $this->__data[$this->getPrimaryKey()];
-        }
     }
     
     protected function insert($comment, $data) {
-        $sth = $this->prepare(static::SQL_INSERT);
+        $sth = DB::prepare('INSERT INTO '. static::tableName(). ' ('. implode(', ', static::getFields()). ') VALUES (:'. implode(', :', static::getFields()). ')');
         $this->beforeInsert($comment, $data);
         if (DB::inTransaction()) {
             $this->__commit = false;
@@ -145,10 +129,12 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
                 $this->intranInsert($comment, $data);
             if ($this->__commit) {
                 DB::commit();
+                $this->__commit = null;
             }
         } catch (\Exception $e) {
             if ($this->__commit) {
                 DB::rollBack();
+                $this->__commit = null;
                 $this->__is_new = true;
             }
             throw $e;
@@ -156,7 +142,8 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         $this->afterInsert($comment, $data);
     }
     protected function update($comment, $data) {
-        $sth = $this->prepare(static::SQL_UPDATE, [ 'WHERE' => $this->getPrimaryKey(). ' = :'. $this->getPrimaryKey()]);
+        $sth = DB::prepare('UPDATE '. static::tableName(). ' SET '. static::getFieldValuePairs(). ' WHERE '. $this->getPrimaryKey(). ' = :'. $this->getPrimaryKey());
+            
         $this->beforeUpdate($comment, $data);
         if (DB::inTransaction()) {
             $this->__commit = false;
@@ -169,10 +156,12 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
             $this->intranUpdate($comment, $data);
             if ($this->__commit) {
                 DB::commit();
+                $this->__commit = null;
             }
         } catch (\Exception $e) {
             if ($this->__commit) {
                 DB::rollBack();
+                $this->__commit = null;
                 $this->__is_new = true;
             }
             throw $e;
@@ -182,7 +171,7 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     public function delete($comment='', $data=null) {
         $this->checkUnuseable();
-        $sth = $this->prepare(static::SQL_DELETE, [ 'WHERE' => $this->getPrimaryKey(). ' = ?']);
+        $sth = DB::prepare('DELETE FROM '. static::tableName(). ' WHERE '. $this->getPrimaryKey(). ' = ?');
         $this->beforeDelete($comment, $data);
         if (DB::inTransaction()) {
             $this->__commit = false;
@@ -215,28 +204,6 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
 
-    public function asString($template='%CLASS%: %FIELDS%', null|array $formats=null, null|array $vars=null) {
-        $this->checkUnuseable();
-        
-        
-        $text = $this->replaceVars($template, [
-            'CLASS' => static::class,
-            'FIELDS' => implode(', ', $this->asFormattedArray($formats)),
-        ]);
-        
-        $text = $this->replaceVars($text, $this->asFormattedArray($formats));
-        
-        if ($vars !== null) {
-            $text = $this->replaceVars($text, $vars);
-        }
-        
-        return $text;
-    }
-    
-    protected function fieldType($field_name) {
-        return self::$__field_types[static::class][$field_name];
-    }
-    
     public function asArray() {
 
         foreach ( self::$__fields[static::class] as $field_name ) {
@@ -245,37 +212,19 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return $result;
     }
     
-    public function asFormattedArray($formats = null) {
-
-        if ($formats === null) {
-            $formats = $this->defaultFormats();
-        }
-        
-        foreach ($this->asArray() as $key => $value) {
-            if ( $this->fieldType($key) == 'datetime' ) {
-                $result[$key] = $value->format($formats['datetime']);
-            } elseif ($this->fieldType($key) == 'bool' ) {
-                $result[$key] = $formats['bool'][(int)$value];
-            } else {
-                $result[$key] = $value;
-            }
-        }
-        
-        return $result;
-    }
-
-    protected function defaultFormats() {
-        return [
-            'datetime' => DB::getFormat('datetime'),
-            'bool' => DB::getFormat('bool')
-        ];
-    }
-    
     static public function getFields() {
         if (!isset(static::$__fields[static::class])) {
             static::fetchDataStructure();
         }
         return static::$__fields[static::class];
+    }
+    
+    static public function getFieldValuePairs() {
+        $pairs = [];
+        foreach (static::getFields() as $field) {
+            $pairs[] = "$field = :$field";
+        }
+        return implode(", ", $pairs);
     }
     
     static public function getAutoIncrement() {
@@ -358,73 +307,163 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         return new \DateTimeImmutable($value);
     }
     
-    static protected function prepare($sql, $vars=[]) {
-        if ($vars === static::INIT) {
-            return DB::PDO()->prepare(static::replaceVarsInit($sql));
-        } 
-        return DB::PDO()->prepare(static::replaceVars($sql, $vars));
-    }
-    
-    static protected function createAlterTable() {
-        $class = static::class;
-        if (!defined("$class::TABLE_NAME")) {
-            throw new \Exception("Constant $class::TABLE_NAME does not defined.", -10007);
+    static protected function tableExists() : bool {
+        $table = static::tableName();
+        $sth = DB::query("SHOW TABLE STATUS WHERE NAME = '$table'");
+        if ($sth->fetch() === false) {
+            return false;
         }
-        if (!defined("$class::SQL_CREATE_TABLE")) {
-            throw new \Exception("Constant $class::SQL_CREATE_TABLE does not defined.", -10007);
-        }
-        
-        $sth_get_version = static::prepare(static::SQL_FETCH_TABLE_VERSION, static::INIT);
-        $sth_get_version->setFetchMode(\PDO::FETCH_COLUMN, 0);
-        $sth_get_version->execute();
-        $version = $sth_get_version->fetch();
-
-        if ($version === false) { // таблица не найдена, создаём
-            if (DB::inTransaction()) {
-                throw new \Exception("You can't create table in transaction.", -10013);
-            }
-            $sth_create = static::prepare(static::SQL_CREATE_TABLE, static::INIT);
-            $sth_create->execute();
-        }
-        
-        for($i=0; $i<100; $i++) {
-            $sth_get_version->execute();
-            $version = $sth_get_version->fetch();
-            
-            $const = str_replace(['v', '.'], '_', "$class::SQL_UPGRADE_FROM$version");
-            if (defined($const)) {
-                if (DB::inTransaction()) {
-                    throw new \Exception("You can't create table in transaction.", -10013);
-                }
-                $sth_upgrade = static::prepare(constant($const), static::INIT);
-                $sth_upgrade->execute();
-            } else {
-                self::$__data_struct_checked[$class] = true;
-                return true;
-            }
-        }
-        
-        throw new \Exception("Upgrade data structure iteration limit exceded.", -10009);
-
+        return true;
     }
     
     static public function initDataStructure($reinit=false) {
         if (empty(static::$__data_struct_checked[static::class]) || $reinit) {
-            static::createAlterTable();
+            if (DB::inTransaction()) {
+                throw new \Exception("You can't create/alter table in transaction.", -10013);
+            }
+            if (!static::tableExists()) {
+                static::createTable();
+            } else {
+                static::alterFields();
+                static::alterIndexes();
+            }
         }
         if (!isset(static::$__fields[static::class]) || $reinit) {
             static::fetchDataStructure();
         }
     }
     
+    static protected function isIndex($key) {
+        if (preg_match("/^PRIMARY KEY$/i", $key) || preg_match("/^UNIQUE INDEX /i", $key) || preg_match("/^INDEX /i", $key)) {
+            return true;
+        }
+        return false;
+    }
+
+    static protected function createTable() {
+        $table = static::tableName();
+        $sql_create_table = "CREATE TABLE $table (";
+        $coma = '';
+        foreach (static::METADATA as $name => $description) {
+            if (static::isIndex($name)) {
+                if (is_array($description)) {
+                    $description = implode(", ", $description);
+                }
+                $description = "($description)";
+            }
+            $sql_create_table .= "$coma\n    $name $description";
+            $coma = ',';
+        }
+        $sql_create_table .= "\n)";
+        
+        DB::exec($sql_create_table);
+    }
+
+    static protected function fetchFields() {
+        $sth = DB::query('SHOW FULL FIELDS FROM '. self::tableName(), \PDO::FETCH_OBJ);
+        return $sth->fetchAll();
+    }
+    
+    static protected function fetchIndexes() {
+        $sth = DB::query('SHOW INDEXES FROM '. self::tableName(), \PDO::FETCH_OBJ);
+        return $sth->fetchAll();
+    }
+
+
+    static protected function metadataFields() {
+        $result = [];
+        foreach (static::METADATA as $key => $value) {
+            if (!static::isIndex($key)) {
+                $result[] = $key;
+            }
+        }
+        return $result;
+    }
+    
+    static protected function metadataIndexes() {
+        $result = [];
+        foreach (static::METADATA as $key => $value) {
+            if (static::isIndex($key)) {
+                $result[] = $key;
+            }
+        }
+        return $result;
+    }
+
+    static protected function alterFields() {
+        
+        $fields = static::metadataFields();
+        $sql_alter_table = 'ALTER TABLE '. static::tableName();
+        $coma = '';
+        
+        foreach (static::fetchFields() as $row) {
+            $index = array_search($row->Field, $fields);
+            if ( $index === false) {
+                $sql_alter_table .= "$coma\n    DROP COLUMN $row->Field";  
+            } else {
+                $sql_alter_table .= "$coma\n    CHANGE COLUMN $row->Field $row->Field ". static::METADATA[$row->Field];
+            }
+            $coma = ',';
+            unset($fields[$index]);
+        }
+        
+        foreach ($fields as $key) {
+            $sql_alter_table .= ",\n    ADD COLUMN $key ". static::METADATA[$key];
+        }
+        DB::exec($sql_alter_table);
+    }
+
+    static protected function scalarToArray($param) : array {
+        if (is_scalar($param)) {
+            $param = [$param];
+        } 
+        return $param;
+    }
+    
+    static protected function alterIndexes() {
+        
+        $indexes = static::metadataIndexes();
+        $sql_alter_table = 'ALTER TABLE '. static::tableName();
+        $coma = '';
+        $existing = [];
+        
+        foreach (static::fetchIndexes() as $row) {
+            if ($row->Key_name == 'PRIMARY') {
+                $key = 'PRIMARY KEY';
+            } elseif ($row->Non_unique === 0) {
+                $key = 'UNIQUE INDEX '. $row->Key_name;
+            } else {
+                $key = 'INDEX '. $row->Key_name;
+            }
+            $existing[$key][] = $row->Column_name;
+        }
+        
+        foreach ($existing as $key => $value) {
+            $found = array_search($key, $indexes);
+            if ($found === false) {
+                $sql_alter_table .= "$coma\n DROP $key";
+                $coma = ',';
+            } elseif (static::scalarToArray(static::METADATA[$indexes[$found]]) != $existing[$key]) {
+                $sql_alter_table .= "$coma\n DROP $key";
+                $coma = ',';
+                $sql_alter_table .= "$coma\n ADD $key (". implode(", ", static::scalarToArray(static::METADATA[$indexes[$found]])).")";
+            }
+        }
+        
+        if ($coma == ',') {
+            DB::exec($sql_alter_table);
+        }
+        
+    }
+        
     static protected function fetchDataStructure() {
-        $sth = static::prepare(static::SQL_FETCH_COLUMNS, static::INIT);
-        $sth->execute();
+        
+        $fields = static::fetchFields();
         
         self::$__fields[static::class] = [];
         self::$__field_types[static::class] = [];
         
-        while ($row = $sth->fetch(\PDO::FETCH_OBJ)) {
+        foreach ($fields as $row) {
             static::$__fields[static::class][] = $row->Field;
             static::$__labels[static::class][$row->Field] = empty($row->Comment) ? $row->Field : $row->Comment;
             if ($row->Key == 'PRI') {
@@ -455,43 +494,12 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         }
     }
     
-    static protected function replaceVarsInit($string) {
-
-        $result1 = str_replace("%DATABASE%", DB::$database, $string);
-        $result2 = str_replace("%TABLE_NAME%", DB::$prefix. static::TABLE_NAME, $result1);
-
-        return $result2;
+    static public function tableName() {
+        $m = [];
+        preg_match("/\w+$/", static::class, $m);
+        return DB::$prefix. $m[0];
     }
-    
-    static protected function replaceVars($string, $vars=[]) {
-    
-        $pairs = [];
-        foreach (static::getFields() as $field) {
-            $pairs[] = "$field = :$field";
-        }
-        $field_value_pairs = implode(", ", $pairs);
 
-        $default_vars = [
-            'DATABASE' => DB::$database,
-            'TABLE_NAME' => DB::$prefix. static::TABLE_NAME,
-            'FIELDS_LIST' => implode(', ', static::getFields()),
-            'VALUES_LIST' => ':'. implode(', :', static::getFields()),
-            'FIELD_VALUE_PAIRS' => $field_value_pairs
-        ];
-
-        $full_vars = array_replace($default_vars, $vars);
-
-        $result = $string;
-        foreach ($full_vars as $key => $value) {
-            if ($value === null) {
-                $value = '';
-            }
-            $result = str_replace("%$key%", $value, $result);
-        }
-        
-        return $result;
-    }
-    
     protected function beforeInsert($comment, $data) {
         $this->eventSetActive(DBEvent::BEFORE_INSERT);
         DB::notify(new DBEvent(DBEvent::BEFORE_INSERT, $this, array_keys($this->__fields_modified), $data, $comment));
@@ -588,81 +596,4 @@ abstract class DBObject extends \losthost\SelfTestingSuite\SelfTestingClass {
         unset($this->__events_active[$event_type]);
     }
 
-    const SQL_SELECT = <<<END
-            SELECT %FIELDS_LIST% FROM %TABLE_NAME%
-            WHERE %WHERE%
-            END;
-    
-    const SQL_INSERT = <<<END
-            INSERT INTO %TABLE_NAME%
-            (%FIELDS_LIST%) VALUES (%VALUES_LIST%)
-            END;
-
-    const SQL_UPDATE = <<<END
-            UPDATE %TABLE_NAME%
-            SET %FIELD_VALUE_PAIRS%
-            WHERE %WHERE%
-            END;
-
-    const SQL_DELETE = <<<END
-            DELETE FROM %TABLE_NAME%
-            WHERE %WHERE%
-            END;
-
-    const SQL_FETCH_COLUMNS = <<<END
-            SHOW FULL FIELDS FROM %TABLE_NAME%;
-            END;
-    
-    const SQL_FETCH_TABLE_VERSION = <<<END
-            SELECT table_comment FROM information_schema.tables 
-            WHERE table_schema = '%DATABASE%' AND TABLE_NAME = '%TABLE_NAME%';
-            END;
-    
-    protected function _test_data() {
-        return [
-            'fetch' => '_test_skip_',
-            'write' => '_test_skip_',
-            'insert' => '_test_skip_',
-            'update' => '_test_skip_',
-            'isNew' => '_test_skip_',
-            'isModified' => '_test_skip_',
-            'asString' => '_test_skip_',
-            'asArray' => '_test_skip_',
-            'asFormattedArray' => '_test_skip_',
-            'defaultFormats' => '_test_skip_',
-            'toDateTime' => '_test_skip_',
-            'fieldType' => '_test_skip_',
-            'getFields' => '_test_skip_',
-            'getAutoIncrement' => '_test_skip_',
-            'getPrimaryKey' => '_test_skip_',
-            'getLabel' => '_test_skip_',
-            '__set' => '_test_skip_',
-            '__get' => '_test_skip_',
-            'prepare' => '_test_skip_',
-            'createAlterTable' => '_test_skip_',
-            'initDataStructure' => '_test_skip_',
-            'fetchDataStructure' => '_test_skip_',
-            'initData' => '_test_skip_',
-            'checkSetField' => '_test_skip_',
-            'replaceVars' => '_test_skip_',
-            'replaceVarsInit' => '_test_skip_',
-            'beforeInsert' => '_test_skip_',
-            'intranInsert' => '_test_skip_',
-            'afterInsert' => '_test_skip_',
-            'beforeUpdate' => '_test_skip_',
-            'intranUpdate' => '_test_skip_',
-            'afterUpdate' => '_test_skip_',
-            'beforeDelete' => '_test_skip_',
-            'intranDelete' => '_test_skip_',
-            'afterDelete' => '_test_skip_',
-            'beforeModify' => '_test_skip_',
-            'afterModify' => '_test_skip_',
-            'addModifiedField' => '_test_skip_',
-            'clearModifiedFeilds' => '_test_skip_',
-            'eventSetActive' => '_test_skip_',
-            'eventUnsetActive' => '_test_skip_',
-            'checkUnuseable' => '_test_skip_',
-            'delete' => '_test_skip_',
-        ];
-    }
 }
