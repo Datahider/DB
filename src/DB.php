@@ -12,7 +12,7 @@ namespace losthost\DB;
  *
  * @author drweb
  */
-class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
+class DB {
     
     const DATE_FORMAT = 'Y-m-d H:i:s';
     
@@ -29,8 +29,6 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     
     protected static bool $in_transaction;
 
-
-    protected static $namespace = '';
     protected static $trackers = [
         DBEvent::ALL_EVENTS => [],
         DBEvent::BEFORE_MODIFY => [],
@@ -46,7 +44,11 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         DBEvent::AFTER_DELETE => [],
     ];
 
-    public static function PDO() : \PDO {
+    public static function PDO() : false | \PDO {
+        
+        if (!isset(self::$pdo)) {
+            return false;
+        }
         
         $count = 240;
         $sleep = false;
@@ -54,14 +56,14 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
             try {
                 self::$pdo->getAttribute(\PDO::ATTR_SERVER_INFO);
                 return self::$pdo;
-            } catch (\Exception $ex) {
-                if (self::$in_transaction) {
-                    error_log('SQL server connection lost while in transaction.');
-                    throw $ex;
+            } catch (\PDOException $ex) {
+                if (self::inTransaction()) {
+                    self::$in_transaction = false;
+                    throw new \Exception('SQL server connection lost while in transaction.', -10013);
                 }
                 if ($count <= 0) {
-                    error_log('Retry limit reached while trying to reconnect to SQL server.');
-                    throw $ex;
+                    self::$in_transaction = false;
+                    throw new \Exception('Retry limit reached while trying to reconnect to SQL server.', -10009);
                 }
                 self::reconnect();
                 if ($sleep) {
@@ -75,7 +77,7 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     public static function beginTransaction() {
-        if (self::$in_transaction) {
+        if (self::inTransaction()) {
             throw new \Exception('Already in transaction');
         }
         self::PDO()->beginTransaction();
@@ -83,7 +85,7 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     public static function commit() {
-        if (!self::$in_transaction) {
+        if (!self::inTransaction()) {
             throw new \Exception('Not in transaction');
         }
         self::PDO()->commit();
@@ -91,7 +93,7 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
     }
     
     public static function rollBack() {
-        if (!self::$in_transaction) {
+        if (!self::inTransaction()) {
             throw new \Exception('Not in transaction');
         }
         self::PDO()->rollBack();
@@ -100,25 +102,6 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
 
     public static function inTransaction() {
         return self::$in_transaction;
-    }
-    
-    public static function getFormat($type) {
-        $lang = isset(self::$language_code) ? strtoupper(self::$language_code) : 'RU';
-        $type = strtoupper($type);
-        
-        $lang_constant_name = "FORMAT_{$lang}_{$type}";
-        $common_constant_name = "FORMAT_$type";
-        
-        if (defined($lang_constant_name)) {
-            return constant($lang_constant_name);
-        } elseif (defined($common_constant_name)) {
-            return constant($common_constant_name);
-        } elseif ($type == 'DATETIME') {
-            return self::DATE_FORMAT;
-        } elseif ($type == 'BOOL') {
-            return [ 'FALSE', 'TRUE' ];
-        }
-        return null;
     }
     
     public static function addTracker(int|array $event_types, string|array $classes, string|DBTracker $tracker) {
@@ -211,7 +194,9 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         DB::$prefix = $db_prefix;
         DB::$database = $db_name;
         
-        DB::$in_transaction = false;
+        if (!isset(self::$in_transaction)) {
+            self::$in_transaction = false;
+        }
         
     }
     
@@ -219,29 +204,13 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         self::connect(DB::$host, DB::$user, DB::$pass, DB::$database, DB::$prefix, DB::$encoding);
     }
     
-    public static function replaceVars($string, $table_name, $condition=1) {
-    
-        $result = str_replace(['%DATABASE%', '%TABLE_NAME%', '%CONDITION%'], [DB::$database, DB::$prefix. $table_name, $condition], $string);
-        return $result;
-        
-    }
-
-    public static function setClassNamespace($namespace) {
-        if (preg_match("/\\\\$/", $namespace)) {
-            self::$namespace = $namespace;
-        } else {
-            self::$namespace = "$namespace\\";
-        }
-        return self::$namespace;
-    }
-    
-    static public function dropAllTables($sure=false, $absolutely=false) {
+    public static function dropAllTables($sure=false, $absolutely=false) {
 
         if (!$sure) {
             throw new \Exception('You have to be sure to drop all tables', -10003);
         }
 
-        $sth_tables = self::prepare(self::SQL_SHOW_TABLES);
+        $sth_tables = self::prepare("SHOW TABLES");
         $sth_tables->execute();
         $sth_tables->setFetchMode(\PDO::FETCH_COLUMN, 0);
 
@@ -254,7 +223,8 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
                 throw new \Exception("You have to be absolutely sure to drop table $table", -10007);
             }
 
-            $sth_drop = self::prepare(str_replace("%TABLE_NAME%", $table, self::SQL_DROP_TABLE));
+            $prefix = static::$prefix;
+            $sth_drop = self::prepare("DROP TABLE $table");
             $sth_drop->execute();
         }
         
@@ -262,153 +232,46 @@ class DB extends \losthost\SelfTestingSuite\SelfTestingClass {
         
     }
     
-    protected static function prepare($_sql, $table_name='', $condition=1) {
+    public static function prepare(string $sql, array $options=[]) : \PDOStatement|false {
         
-        $sql = self::replaceVars($_sql, $table_name, $condition);
-
-        $sth = self::PDO()->prepare($sql);
+        $sth = self::PDO()->prepare(self::convertTables($sql), $options);
         return $sth;
         
     }
     
-    protected static function classFullName($class) {
-        if (strpos($class, "\\") === false) {
-            return self::$namespace. $class;
-        } else {
-            return $class;
-        }
-    }
-    
-//    public static function shortClassName($class_or_object) {
-//        return self::classShortName($class_or_object);
-//    }
-    
-    public static function classShortName($class_or_object) {
-        if (!is_string($class_or_object)) {
-            $class_or_object = get_class($class_or_object);
-        }
-        $matches = [];
-        preg_match("/\\\\?([^\\\\]+)$/", $class_or_object, $matches);
-        return $matches[1];
-    }
-
-    const SQL_SHOW_TABLES = "SHOW TABLES";
-    const SQL_DROP_TABLE = "DROP TABLE %TABLE_NAME%";
-    
-    public function _test_connected() {
-        if (!self::$pdo) {
-            throw new \Exception("Please call DB::connect('localhost', 'test', 'correct_password', 'test', 't_') before start testing this class.");
-        } else {
-            self::PDO()->getAttribute(\PDO::ATTR_SERVER_INFO);
-            echo '.';
-            if (self::$database != 'test') {
-                throw new \Exception("The database name have to be `test`.");
-            }
-            echo '.';
-            if (self::$prefix != 't_') {
-                throw new \Exception("The prefix have to be `t_`.");
-            }
-            echo '.';
-        }
-    }
-    
-    public function _test_addTracker() {
-        $tracker = new DBTestTracker();
-        self::addTracker(DBEvent::BEFORE_MODIFY, 'losthost\DB\DBTestObject', $tracker);
-        echo '.';
-        self::addTracker(DBEvent::AFTER_MODIFY, 'losthost\DB\DBTestObject', $tracker);
-        echo '.';
-        self::addTracker(DBEvent::ALL_EVENTS, '*', $tracker);
-        echo '.';
-    }
-    
-    public function _test_notify() {
+    public static function query(string $sql, ?int $fetch_mode=null, int|string $colno_class_name=0, array $constructor_args=[]) : \PDOStatement|false {
         
-        if (($result = $this->notify(new DBEvent(DBEvent::BEFORE_MODIFY, new DBTestObject(), 'id', 1))) != 1) {
-            throw new \Exception('Awaiting result to be 1 but got '. $result);
+        if ($fetch_mode == \PDO::FETCH_COLUMN) {
+            return self::PDO()->query(self::convertTables($sql), $fetch_mode, $colno_class_name);
+        } elseif ($fetch_mode == \PDO::FETCH_CLASS) {
+            return self::PDO()->query(self::convertTables($sql), $fetch_mode, $colno_class_name, $constructor_args);
+        } else {
+            return self::PDO()->query(self::convertTables($sql), $fetch_mode);
         }
-        echo '.';
-        if (($result = $this->notify(new DBEvent(DBEvent::BEFORE_UPDATE, new DBTestObject(), ['id']))) != 1) {
-            throw new \Exception('Awaiting result to be 1 but got '. $result);
-        }
-        echo '.';
         
     }
     
-    public function _test_prepare() {
-        $sth = $this->prepare("SELECT 1 FROM %DATABASE%.%TABLE_NAME% WHERE %CONDITION%", 'sometable', '2=3');
-        if ($sth->queryString != "SELECT 1 FROM test.t_sometable WHERE 2=3") {
-            throw new \Exception('Awaiting queryString to be "SELECT 1 FROM test.t_sometable WHERE 2=3" but got "'. $sth->queryString. '"');
-        }
-        echo '.';
+    public static function exec(string $sql) : int|false {
+        
+        return self::PDO()->exec(self::convertTables($sql));
+                
     }
     
-    public function _test_PrepareDB() {
-        $sth = $this->prepare("CREATE TABLE IF NOT EXISTS t_testtable ( id INT )");
-        $sth->execute();
+    protected static function convertTables($sql) : string {
+        $prefix = self::$prefix;
+        return preg_replace("/\[(\w+?)\]/", "$prefix$1", $sql);
+    }
+    
+    public static function getTables($sql) {
+        $m = [];
+        $tables = [];
+        
+        if (preg_match_all("/\[(\w+?)\]/", $sql, $m, PREG_SET_ORDER)) {
+            foreach ($m as $table) {
+                $tables[] = self::$prefix. $table[1];
+            }
+        }
+        return $tables;
     }
 
-    public function _test() {
-        return parent::_test();
-    }
-    
-    public function _test_data() {
-        return [
-            'connect' => '_test_connected',
-            'setClassNamespace' => [
-                ['losthost\\DB', 'losthost\\DB\\'],
-                ['losthost\\DB\\', 'losthost\\DB\\'],
-            ],
-            'classFullName' => [
-                ['someclass', 'losthost\\DB\\someclass'],
-                ['losthost\\otherclass', 'losthost\\otherclass'],
-            ],
-            'classShortName' => [
-                ['losthost\\someclass', 'someclass'],
-                [$this, 'DB'],
-            ],
-            'replaceVars' => [
-                ['%DATABASE% %TABLE_NAME% %CONDITION%', 'sometable', 'test t_sometable 1'],
-                ['%DATABASE% %TABLE_NAME% %CONDITION%',  'sometable', '888', 'test t_sometable 888'],
-            ],
-            'prepare' => '_test_prepare',
-            '_test_PrepareDB' => [
-                [null]
-            ],
-            'dropAllTables' => [
-                [new \Exception('', -10003)],
-                [true, new \Exception('', -10007)],
-                [true, true, true],
-            ],
-            'addTracker' => '_test_addTracker',
-            'notifyArray' => '_test_skip_',
-            'notify' => '_test_notify',
-            'clearTrackers' => [
-                [[
-                    DBEvent::ALL_EVENTS => [],
-                    DBEvent::BEFORE_MODIFY => [],
-                    DBEvent::BEFORE_INSERT => [],
-                    DBEvent::BEFORE_UPDATE => [],
-                    DBEvent::BEFORE_DELETE => [],
-                    DBEvent::INTRAN_INSERT => [],
-                    DBEvent::INTRAN_UPDATE => [],
-                    DBEvent::INTRAN_DELETE => [],
-                    DBEvent::AFTER_MODIFY => [],
-                    DBEvent::AFTER_INSERT => [],
-                    DBEvent::AFTER_UPDATE => [],
-                    DBEvent::AFTER_DELETE => [],
-                ]]
-            ],
-            'getFormat' => [
-                ['bool', ['FALSE', 'TRUE']],
-                ['datetime', 'Y-m-d H:i:s'],
-            ],
-            'PDO' => '_test_skip_',
-            'beginTransaction' => '_test_skip_',
-            'commit' => '_test_skip_',
-            'rollBack' => '_test_skip_',
-            'inTransaction' => '_test_skip_',
-            'reconnect' => '_test_skip_',
-        ];
-    }
 }

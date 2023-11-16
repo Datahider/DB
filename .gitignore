@@ -1,4 +1,8 @@
 /vendor/
+/nbproject/
 /DBTestChild.php
 /secret.php
 /index.php
+/test/dbpass.php
+/test/.phpunit.result.cache
+/test/old-tests.php

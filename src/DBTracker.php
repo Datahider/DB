@@ -6,13 +6,14 @@
  */
 
 namespace losthost\DB;
+use losthost\DB\DBEvent;
 
 /**
  * Description of DBListener
  *
  * @author drweb
  */
-abstract class DBTracker extends \losthost\SelfTestingSuite\SelfTestingClass {
+abstract class DBTracker {
     
     abstract public function track(DBEvent $event);
     
