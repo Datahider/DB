@@ -307,7 +307,7 @@ abstract class DBObject {
         return new \DateTimeImmutable($value);
     }
     
-    static protected function tableExists() : bool {
+    static public function tableExists() : bool {
         $table = static::tableName();
         $sth = DB::query("SHOW TABLE STATUS WHERE NAME = '$table'");
         if ($sth->fetch() === false) {
