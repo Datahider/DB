@@ -327,6 +327,7 @@ abstract class DBObject {
                 static::alterFields();
                 static::alterIndexes();
             }
+            static::$__data_struct_checked[static::class] = true;
         }
         if (!isset(static::$__fields[static::class]) || $reinit) {
             static::fetchDataStructure();
