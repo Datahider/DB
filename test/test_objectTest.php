@@ -79,4 +79,15 @@ class test_objectTest extends TestCase {
         $this->expectExceptionMessage('Not found');
         $t3 = new test_object(['name' => 'test 2']);
     }
+    
+    public function testUpdatingInInsertTransaction() {
+        
+        $t = new test_object(['name' => 'tmp'], true);
+        $t->bool_field = true;
+        $t->write();
+        
+        $this->assertFalse(DB::inTransaction());
+        $this->assertEquals('persistent', $t->name);
+        
+    }
 }

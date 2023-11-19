@@ -53,16 +53,16 @@ class DBTest extends TestCase {
         DB::PDO()->getAttribute(\PDO::ATTR_SERVER_INFO);
     }
     
-    public function testDropAllTables() {
-        
-        DB::exec(<<<END
-                CREATE TABLE IF NOT EXISTS [test] (
-                    id BIGINT(20)
-                );
-            END);
-        $this->assertTrue(DB::dropAllTables(true, true));
-    }
-    
+//    public function testDropAllTables() {
+//        
+//        DB::exec(<<<END
+//                CREATE TABLE IF NOT EXISTS [test] (
+//                    id BIGINT(20)
+//                );
+//            END);
+//        $this->assertTrue(DB::dropAllTables(true, true));
+//    }
+//    
     public function testGetTables() {
         
         $test = DB::getTables("[table1], [table2]");

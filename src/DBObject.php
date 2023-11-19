@@ -29,8 +29,6 @@ abstract class DBObject {
 
      */
 
-    protected $__commit;
-
     protected $__data = [];
     protected $__is_new = true;
     protected $__fields_modified = [];
@@ -115,9 +113,9 @@ abstract class DBObject {
         $sth = DB::prepare('INSERT INTO '. static::tableName(). ' ('. implode(', ', static::getFields()). ') VALUES (:'. implode(', :', static::getFields()). ')');
         $this->beforeInsert($comment, $data);
         if (DB::inTransaction()) {
-            $this->__commit = false;
+            $commit = false;
         } else {
-            $this->__commit = true;
+            $commit = true;
             DB::beginTransaction();
         }
         try {
@@ -127,14 +125,12 @@ abstract class DBObject {
             }
             $this->__is_new = false;
                 $this->intranInsert($comment, $data);
-            if ($this->__commit) {
+            if ($commit) {
                 DB::commit();
-                $this->__commit = null;
             }
         } catch (\Exception $e) {
-            if ($this->__commit) {
+            if ($commit) {
                 DB::rollBack();
-                $this->__commit = null;
                 $this->__is_new = true;
             }
             throw $e;
@@ -146,22 +142,20 @@ abstract class DBObject {
             
         $this->beforeUpdate($comment, $data);
         if (DB::inTransaction()) {
-            $this->__commit = false;
+            $commit = false;
         } else {
-            $this->__commit = true;
+            $commit = true;
             DB::beginTransaction();
         }
         try {
             $sth->execute($this->__data);
             $this->intranUpdate($comment, $data);
-            if ($this->__commit) {
+            if ($commit) {
                 DB::commit();
-                $this->__commit = null;
             }
         } catch (\Exception $e) {
-            if ($this->__commit) {
+            if ($commit) {
                 DB::rollBack();
-                $this->__commit = null;
                 $this->__is_new = true;
             }
             throw $e;
@@ -174,14 +168,14 @@ abstract class DBObject {
         $sth = DB::prepare('DELETE FROM '. static::tableName(). ' WHERE '. $this->getPrimaryKey(). ' = ?');
         $this->beforeDelete($comment, $data);
         if (DB::inTransaction()) {
-            $this->__commit = false;
+            $commit = false;
         } else {
             DB::beginTransaction();
-            $this->__commit = true;
+            $commit = true;
         }
         $sth->execute([$this->__data[$this->getPrimaryKey()]]);
         $this->intranDelete($comment, $data);
-        if ($this->__commit) {
+        if ($commit) {
             DB::commit();
         }
         $this->__unuseable = true;

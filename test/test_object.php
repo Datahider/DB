@@ -26,4 +26,14 @@ class test_object extends DBObject {
         'UNIQUE INDEX name' => 'name',
         'INDEX some_date_bool_field' => ['some_date', 'bool_field']
     ];
+    
+    protected function intranInsert($comment, $data) {
+        parent::intranInsert($comment, $data);
+        error_log($this->name);
+        if ($this->name == 'tmp') {
+            error_log('I am here');
+            $this->__data['name'] = 'persistent';
+            $this->update($comment, $data);
+        }
+    }
 }
