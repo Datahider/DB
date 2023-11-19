@@ -298,6 +298,9 @@ abstract class DBObject {
     }
     
     protected function toDateTime($value) {
+        if ($value === null) {
+            return null;
+        }
         return new \DateTimeImmutable($value);
     }
     
