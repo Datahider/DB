@@ -90,4 +90,25 @@ class test_objectTest extends TestCase {
         $this->assertEquals('persistent', $t->name);
         
     }
+    
+    public function testFetchingObjectByDatetimeField() {
+        $some_date = new \DateTime('2022-01-01 21:16:18');
+        $test = new test_object(['name' => 'datetime select', 'bool_field' => false, 'some_date' => $some_date], true);
+        $test->write();
+        
+        $check = new test_object(['some_date' => $some_date]);
+        
+        $this->assertEquals($test, $check);
+    }
+    
+    public function testFetchingObjectByFalseField() {
+        
+        $some_date = new \DateTime('2022-01-01 23:31:11');
+        $test = new test_object(['name' => 'false select', 'bool_field' => false, 'some_date' => $some_date], true);
+        $test->write();
+        
+        $check = new test_object(['name' => 'false select', 'bool_field' => false]);
+        
+        $this->assertEquals($test, $check);
+    }
 }

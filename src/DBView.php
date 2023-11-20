@@ -12,7 +12,7 @@ namespace losthost\DB;
  *
  * @author drweb
  */
-class DBView {
+class DBView extends DBBaseClass {
     
     protected $__sql;
     protected $__params;
@@ -39,7 +39,7 @@ class DBView {
         }
         
         $sth = $this->prepare($this->__sql, $vars);
-        $sth->execute($this->__params);
+        $sth->execute($this->filterTypes($this->__params));
         
         
         $this->fillTypes($sth);

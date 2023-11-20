@@ -12,7 +12,7 @@ namespace losthost\DB;
  *
  * @author drweb
  */
-abstract class DBObject {
+abstract class DBObject extends DBBaseClass {
     
     /* 
      * В дочерних классах определите константу METADATA
@@ -79,7 +79,7 @@ abstract class DBObject {
         $this->checkUnuseable();
         
         $sth = DB::prepare('SELECT * FROM '. $this->tableName(). ' WHERE '. $this->where($filter));
-        $sth->execute($filter);
+        $sth->execute($this->filterTypes($filter));
         
         $result = $sth->fetch(\PDO::FETCH_ASSOC);
         
