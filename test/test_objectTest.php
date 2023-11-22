@@ -120,4 +120,15 @@ class test_objectTest extends TestCase {
         
         $this->assertEquals($test, $check);
     }
+    
+    public function testChangingPrimaryKeyInConstructor() {
+        
+        $t1 = new test_object(['id' => null, 'bool_field' => false], true);
+        $t1->write();
+        
+        $t2 = new test_object(['id' => $t1->id], true);
+        $this->assertFalse($t2->isNew());
+        $this->assertFalse($t2->isModified());
+        
+    }
 }

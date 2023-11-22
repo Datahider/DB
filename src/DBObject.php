@@ -52,7 +52,7 @@ abstract class DBObject extends DBBaseClass {
         if (count($data) > 0) {
             if (!$this->fetch($data) && !$create) {
                 throw new \Exception('Not found', -10002);
-            } elseif ($create) {
+            } elseif ($this->isNew()) {
                 foreach ($data as $key => $value) {
                     $this->$key = $value;
                 }
