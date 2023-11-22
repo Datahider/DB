@@ -64,7 +64,11 @@ abstract class DBObject extends DBBaseClass {
         $result_array = [];
         
         foreach (array_keys($data) as $key) {
-            $result_array[] = "$key = :$key";
+            if (is_null($data[$key])) {
+                $result_array[] = "$key IS :$key";
+            } else {
+                $result_array[] = "$key = :$key";
+            }
         }
         return implode(" AND ", $result_array);
     }

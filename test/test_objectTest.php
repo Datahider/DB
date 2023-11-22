@@ -111,4 +111,13 @@ class test_objectTest extends TestCase {
         
         $this->assertEquals($test, $check);
     }
+    
+    public function testFetchinObjectByNullField() {
+        $test = new test_object(['name' => 'null select', 'bool_field' => true], true);
+        $test->write();
+        
+        $check = new test_object(['name' => 'null select', 'another_bool' => null]);
+        
+        $this->assertEquals($test, $check);
+    }
 }
