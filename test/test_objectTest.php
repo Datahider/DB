@@ -25,7 +25,7 @@ class test_objectTest extends TestCase {
     }
     
     public function testCorrectTableName() {
-        $this->assertEquals('test_test_object', test_object::tableName());
+        $this->assertEquals('test_objects', test_object::tableName());
     }
     
     public function testCanCreateObject() {

@@ -358,12 +358,12 @@ abstract class DBObject extends DBBaseClass {
     }
 
     static protected function fetchFields() {
-        $sth = DB::query('SHOW FULL FIELDS FROM '. self::tableName(), \PDO::FETCH_OBJ);
+        $sth = DB::query('SHOW FULL FIELDS FROM '. static::tableName(), \PDO::FETCH_OBJ);
         return $sth->fetchAll();
     }
     
     static protected function fetchIndexes() {
-        $sth = DB::query('SHOW INDEXES FROM '. self::tableName(), \PDO::FETCH_OBJ);
+        $sth = DB::query('SHOW INDEXES FROM '. static::tableName(), \PDO::FETCH_OBJ);
         return $sth->fetchAll();
     }
 

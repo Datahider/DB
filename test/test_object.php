@@ -7,6 +7,7 @@
 
 namespace losthost\DB\test;
 use losthost\DB\DBObject;
+use losthost\DB\DB;
 
 /**
  * Description of test_object
@@ -26,6 +27,10 @@ class test_object extends DBObject {
         'UNIQUE INDEX name' => 'name',
         'INDEX some_date_bool_field' => ['some_date', 'bool_field']
     ];
+    
+    public static function tableName() {
+        return DB::$prefix. 'objects';
+    }
     
     protected function intranInsert($comment, $data) {
         parent::intranInsert($comment, $data);

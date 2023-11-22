@@ -26,7 +26,7 @@ class DBValueTest extends TestCase {
         $v1->bool_field = false;
         $v1->write();
         
-        $val = new DBValue('SELECT name FROM [test_object] WHERE id = ?', $v1->id);
+        $val = new DBValue('SELECT name FROM [objects] WHERE id = ?', $v1->id);
         $this->assertEquals('value_test', $val->name);
         
     }
@@ -38,7 +38,7 @@ class DBValueTest extends TestCase {
         $v1->bool_field = false;
         $v1->write();
         
-        $val = new DBValue('SELECT name FROM [test_object] WHERE bool_field = ? AND some_date = ?', [false, $some_date]);
+        $val = new DBValue('SELECT name FROM [objects] WHERE bool_field = ? AND some_date = ?', [false, $some_date]);
         $this->assertEquals('value_test_complex', $val->name);
     }
 }
