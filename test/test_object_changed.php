@@ -14,14 +14,14 @@ use losthost\DB\DB;
  *
  * @author drweb_000
  */
-class test_object extends DBObject {
+class test_object_changed extends DBObject {
     
     const METADATA = [
         'id' => 'bigint(20) unsigned auto_increment COMMENT "Идентификатор"',
         'name' => 'varchar(50) COMMENT "Имя"',
         'description' => 'varchar(1024) COMMENT "Описание"',
         'some_date' => 'DATETIME COMMENT "Какая-то дата"',
-        'bool_field' => 'TINYINT(1) NOT NULL COMMENT "Булево поле"',
+        'bool_field' => 'TINYINT(1) COMMENT "Булево поле"',
         'another_bool' => 'TINYINT(1) COMMENT "Другое булево"',
         'PRIMARY KEY' => 'id',
         'UNIQUE INDEX name' => 'name',

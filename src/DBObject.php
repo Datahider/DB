@@ -395,26 +395,69 @@ abstract class DBObject extends DBBaseClass {
     static protected function alterFields() {
         
         $fields = static::metadataFields();
-        $sql_alter_table = 'ALTER TABLE '. static::tableName();
+        $sql_alter_table = '';
         $coma = '';
         
         foreach (static::fetchFields() as $row) {
             $index = array_search($row->Field, $fields);
             if ( $index === false) {
                 $sql_alter_table .= "$coma\n    DROP COLUMN $row->Field";  
-            } else {
+                $coma = ',';
+            } elseif (!static::isColumnSameType($row)) {
                 $sql_alter_table .= "$coma\n    CHANGE COLUMN $row->Field $row->Field ". static::METADATA[$row->Field];
+                $coma = ',';
             }
-            $coma = ',';
             unset($fields[$index]);
         }
         
         foreach ($fields as $key) {
             $sql_alter_table .= ",\n    ADD COLUMN $key ". static::METADATA[$key];
         }
-        DB::exec($sql_alter_table);
+        
+        if ($sql_alter_table) {
+            DB::exec('ALTER TABLE '. static::tableName(). $sql_alter_table);
+        }
     }
 
+    static protected function isColumnSameType($column_row) {
+    
+        $name = $column_row->Field;
+        $type = $column_row->Type;
+        $is_unsigned = (bool)stristr($type, 'UNSIGNED');
+        $is_auto_increment = (bool)preg_match("/auto_increment/", $column_row->Extra);
+        $is_nullable = strtolower($column_row->Null) == 'yes' && !$is_auto_increment;
+        $comment = $column_row->Comment;
+        
+        if (! stristr(static::METADATA[$name], $type)) {
+            return false;
+        }
+        
+        if (((bool) stristr(static::METADATA[$name], 'UNSIGNED')) != $is_unsigned) {
+            return false;
+        }
+        
+        if (!$is_auto_increment && ((bool) stristr(static::METADATA[$name], 'NOT NULL')) == $is_nullable) {
+            return false;
+        }
+        
+        if (((bool) stristr(static::METADATA[$name], 'AUTO_INCREMENT')) != $is_auto_increment) {
+            return false;
+        }
+        
+        $m = [];
+        if (preg_match("/COMMENT\s+\"(.*?)\"/i", static::METADATA[$name], $m) || preg_match("/COMMENT\s+\'(.*?)\'/i", static::METADATA[$name], $m)) {
+            $new_comment = $m[1];
+        } else {
+            $new_comment = '';
+        }
+        
+        if ($new_comment != $comment) {
+            return false;
+        }
+        
+        return true;
+    }
+    
     static protected function scalarToArray($param) : array {
         if (is_scalar($param)) {
             $param = [$param];

@@ -131,4 +131,26 @@ class test_objectTest extends TestCase {
         $this->assertFalse($t2->isModified());
         
     }
+    
+    public function testDoNotAlterTable() {
+        test_object::initDataStructure(true);
+        test_object::initDataStructure(true);
+        $this->assertFalse("Check if ALTER TABLE was not called");
+    }
+    
+    public function testAlterTable() {
+        test_object::initDataStructure(true);
+        test_object_changed::initDataStructure(true);
+        $sth = DB::query('SHOW FULL FIELDS FROM '. test_object_changed::tableName(), \PDO::FETCH_OBJ);
+        $rows = $sth->fetchAll();
+        
+        foreach ($rows as $row) {
+            if ($row->Field == 'bool_field') {
+                $this->assertEquals('YES', $row->Null);
+            } else {
+                $this->assertTrue(true);
+            }
+        }
+
+    }
 }
