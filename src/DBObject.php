@@ -411,7 +411,8 @@ abstract class DBObject extends DBBaseClass {
         }
         
         foreach ($fields as $key) {
-            $sql_alter_table .= ",\n    ADD COLUMN $key ". static::METADATA[$key];
+            $sql_alter_table .= "$coma\n    ADD COLUMN $key ". static::METADATA[$key];
+            $coma = ',';
         }
         
         if ($sql_alter_table) {
