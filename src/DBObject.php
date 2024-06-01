@@ -239,6 +239,23 @@ abstract class DBObject extends DBBaseClass {
         return isset(static::$__pri[static::class]) ? static::$__pri[static::class] : null;
     }
 
+    static protected function getMetadataHash() {
+        $full_hash = md5(print_r(static::METADATA, true));
+        $hash_truncated = substr($full_hash, 0, 8);
+        return $hash_truncated;
+    }
+    
+    static protected function isStructChanged() {
+        $sth = DB::prepare('SELECT TABLE_COMMENT FROM `information_schema`.`TABLES` WHERE TABLE_NAME = ?');
+        $sth->execute([static::tableName()]);
+        $current_comment = $sth->fetchColumn();
+        
+        $hash = static::getMetadataHash();
+        
+        return !strstr($current_comment, $hash);
+    }
+
+
     public function getLabel($field_name) {
         $this->checkUnuseable();
         if (array_key_exists($field_name, self::$__labels[get_class($this)])) {
@@ -324,7 +341,7 @@ abstract class DBObject extends DBBaseClass {
             }
             if (!static::tableExists()) {
                 static::createTable();
-            } else {
+            } elseif (static::isStructChanged()) {
                 static::alterFields();
                 static::alterIndexes();
             }
@@ -356,7 +373,8 @@ abstract class DBObject extends DBBaseClass {
             $sql_create_table .= "$coma\n    $name $description";
             $coma = ',';
         }
-        $sql_create_table .= "\n)";
+        $hash = static::getMetadataHash();
+        $sql_create_table .= "\n) COMMENT = '$hash'";
         
         DB::exec($sql_create_table);
     }
@@ -395,8 +413,8 @@ abstract class DBObject extends DBBaseClass {
     static protected function alterFields() {
         
         $fields = static::metadataFields();
-        $sql_alter_table = '';
-        $coma = '';
+        $sql_alter_table = ' COMMENT = "'. static::getMetadataHash(). '"';
+        $coma = ',';
         
         foreach (static::fetchFields() as $row) {
             $index = array_search($row->Field, $fields);
