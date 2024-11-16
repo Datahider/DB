@@ -333,15 +333,19 @@ abstract class DBObject extends DBBaseClass {
         }
         return true;
     }
-    
+
     static public function initDataStructure($reinit=false) {
+        
         if (empty(static::$__data_struct_checked[static::class]) || $reinit) {
-            if (DB::inTransaction()) {
-                throw new \Exception("You can't create/alter table in transaction.", -10013);
-            }
             if (!static::tableExists()) {
+                if (DB::inTransaction()) {
+                    throw new \Exception("You can't create table in transaction.", -10013);
+                }
                 static::createTable();
             } elseif (static::isStructChanged()) {
+                if (DB::inTransaction()) {
+                    throw new \Exception("You can't alter table in transaction.", -10013);
+                }
                 static::alterFields();
                 static::alterIndexes();
             }
