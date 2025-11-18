@@ -200,7 +200,7 @@ class DB {
         
     }
     
-    protected static function reconnect() {
+    public static function reconnect() {
         self::connect(DB::$host, DB::$user, DB::$pass, DB::$database, DB::$prefix, DB::$encoding);
     }
     
