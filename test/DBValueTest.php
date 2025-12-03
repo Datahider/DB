@@ -41,4 +41,13 @@ class DBValueTest extends TestCase {
         $val = new DBValue('SELECT name FROM [objects] WHERE bool_field = ? AND some_date = ?', [false, $some_date]);
         $this->assertEquals('value_test_complex', $val->name);
     }
+    
+    public function testStaticNew() {
+        test_object::initDataStructure();
+        $obj = new test_object();
+        $obj->bool_field = false;
+        $obj->write();
+        
+        $this->assertEquals($obj->id, DBValue::new('SELECT MAX(id) as id FROM [objects]')->id);
+    }
 }

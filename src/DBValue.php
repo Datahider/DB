@@ -19,4 +19,7 @@ class DBValue extends \losthost\DB\DBView {
         $this->next();
     }
 
+    static public function new(string $sql, $params = []) : static {
+        return new static($sql, $params);
+    }
 }
