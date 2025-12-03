@@ -257,6 +257,14 @@ class DB {
                 
     }
     
+    public static function getLock(string $name, int $timeout=0) : bool {
+        return (bool)(new DBValue("SELECT GET_LOCK(?, ?) AS locked", [static::$prefix. $name, $timeout]))->locked;
+    }
+
+    public static function releaseLock(string $name) : void {
+        new DBValue("SELECT RELEASE_LOCK(?)", [static::$prefix. $name]);
+    }
+    
     protected static function convertTables($sql) : string {
         $prefix = self::$prefix;
         return preg_replace("/\[(\w+?)\]/", "$prefix$1", $sql);

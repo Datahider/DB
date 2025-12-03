@@ -80,4 +80,23 @@ class DBTest extends TestCase {
         
         DB::clearTrackers();
     }
+    
+    public function testGetLock() {
+        
+        $db_name = DB_NAME;
+        $db_host = DB_HOST;
+        $db_user = DB_USER;
+        $db_pass = DB_PASS;
+        
+        $test_pdo = new \PDO("mysql:dbname=$db_name;host=$db_host;charset=utf8mb4", 
+                $db_user, 
+                $db_pass
+        );
+        $test_pdo->exec("SELECT GET_LOCK('test_test_lock',0)");
+        
+        $this->assertFalse(DB::getLock('test_lock'));
+        $this->assertTrue(DB::getLock('ANOTHER_LOCK'));
+        
+        DB::releaseLock('ANOTHER_LOCK');
+    }
 }
