@@ -94,6 +94,10 @@ class DBView extends DBBaseClass {
         $this->__pointer = -1;
     }
     
+    public function asArray() {
+        return $this->__data;
+    }
+    
     protected function isOutOfRange() {
         return $this->__pointer < 0 || $this->__pointer >= count($this->__data);
     }
