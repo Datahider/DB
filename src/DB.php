@@ -265,6 +265,10 @@ class DB {
         new DBValue("SELECT RELEASE_LOCK(?)", [static::$prefix. $name]);
     }
     
+    public static function isFreeLock(string $name) : bool {
+        return (bool)(new DBValue("SELECT IS_FREE_LOCK(?) AS is_free", static::$prefix. $name))->is_free;
+    }
+    
     protected static function convertTables($sql) : string {
         $prefix = self::$prefix;
         return preg_replace("/\[(\w+?)\]/", "$prefix$1", $sql);

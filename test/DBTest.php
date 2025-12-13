@@ -99,4 +99,16 @@ class DBTest extends TestCase {
         
         DB::releaseLock('ANOTHER_LOCK');
     }
+    
+    public function testIsFreeLock() {
+        $this->assertTrue(DB::isFreeLock('test_free_lock'));
+
+        // Захватываем через DB
+        $this->assertTrue(DB::getLock('test_free_lock'));
+        $this->assertFalse(DB::isFreeLock('test_free_lock'));
+
+        DB::releaseLock('test_free_lock');
+        $this->assertTrue(DB::isFreeLock('test_free_lock'));
+    }
+    
 }
