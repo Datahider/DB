@@ -48,5 +48,8 @@ If you need some special processing (like checking or filling data) you may over
 ## TODO
 - добавить параметр формата к DBObject->asString();
 
+## Using with AI
+PROMPT.md contains the description of the lib for AI-agents. Copy its content to agent's prompt and ask it to help you in developing your app.
+
 ## Epilogue
 That's it. Have fun.
