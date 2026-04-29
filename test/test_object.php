@@ -21,6 +21,7 @@ class test_object extends DBObject {
         'name' => 'varchar(50) COMMENT "Имя"',
         'description' => 'varchar(1024) COMMENT "Описание"',
         'some_date' => 'DATETIME COMMENT "Какая-то дата"',
+        'hires_date' => 'DATETIME(6) COMMENT "Дата с микросекундами"',
         'bool_field' => 'TINYINT(1) NOT NULL COMMENT "Булево поле"',
         'another_bool' => 'TINYINT(1) COMMENT "Другое булево"',
         'PRIMARY KEY' => 'id',

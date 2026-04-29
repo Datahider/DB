@@ -121,6 +121,14 @@ class test_objectTest extends TestCase {
         $this->assertEquals($test, $check);
     }
     
+    public function testStoringHiResDate() {
+        $test = new test_object(['name' => 'Hi Resolution Datetime', 'bool_field' => false, 'hires_date' => new \DateTimeImmutable('2026-04-29 12:07:14.037234')], true);
+        $test->write();
+        
+        $check = new test_object(['id' => $test->id]);
+        $this->assertEquals('2026-04-29 12:07:14.037234', $check->hires_date->format(DB::DATE_FORMAT_HIRES));
+    }
+    
     public function testChangingPrimaryKeyInConstructor() {
         
         $t1 = new test_object(['id' => null, 'bool_field' => false], true);

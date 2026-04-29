@@ -15,6 +15,7 @@ namespace losthost\DB;
 class DB {
     
     const DATE_FORMAT = 'Y-m-d H:i:s';
+    const DATE_FORMAT_HIRES = 'Y-m-d H:i:s.u';
     
     public static string $prefix;
     public static string $database;

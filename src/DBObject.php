@@ -265,8 +265,11 @@ abstract class DBObject extends DBBaseClass {
         }
     }
     
-    protected function formatDateTime($value) {
+    protected function formatDateTime($value, $hires=false) {
         if (is_a($value, '\DateTime') || is_a($value, '\DateTimeImmutable')) {
+            if ($hires) {
+                return $value->format(DB::DATE_FORMAT_HIRES);
+            }
             return $value->format(DB::DATE_FORMAT);
         }
         
@@ -285,6 +288,8 @@ abstract class DBObject extends DBBaseClass {
                 $new_value = null;
             } elseif ( self::$__field_types[static::class][$name] == 'datetime' ) {
                 $new_value = $this->formatDateTime($value);
+            } elseif ( self::$__field_types[static::class][$name] == 'datetime(6)' ) {
+                $new_value = $this->formatDateTime($value, true);
             } elseif ( self::$__field_types[static::class][$name] == 'bool' ) {
                 $new_value = (int)((bool)$value);
             } else {
@@ -307,6 +312,8 @@ abstract class DBObject extends DBBaseClass {
             if ($this->__data[$name] === null) {
                 return null;
             } elseif ( self::$__field_types[static::class][$name] == 'datetime' ) {
+                return $this->toDateTime($this->__data[$name]);
+            } elseif ( self::$__field_types[static::class][$name] == 'datetime(6)' ) {
                 return $this->toDateTime($this->__data[$name]);
             } elseif ( self::$__field_types[static::class][$name] == 'bool' ) {
                 return (bool) $this->__data[$name];
@@ -542,6 +549,8 @@ abstract class DBObject extends DBBaseClass {
             }
             if ($row->Type == 'datetime') {
                 self::$__field_types[static::class][$row->Field] = 'datetime';
+            } elseif ($row->Type == 'datetime(6)') {
+                self::$__field_types[static::class][$row->Field] = 'datetime(6)';
             } elseif ($row->Type == 'tinyint(1)') {
                 self::$__field_types[static::class][$row->Field] = 'bool';
             } else {
