@@ -179,6 +179,10 @@ class DB {
         return $result;
     }
 
+    public static function use(\PDO $pdo) {
+        DB::$pdo = $pdo;
+    }
+    
     public static function connect($db_host, $db_user, $db_pass, $db_name, $db_prefix='', $db_encoding='utf8mb4') {
         
         DB::$pdo = new \PDO("mysql:dbname=$db_name;host=$db_host;charset=utf8mb4", 
